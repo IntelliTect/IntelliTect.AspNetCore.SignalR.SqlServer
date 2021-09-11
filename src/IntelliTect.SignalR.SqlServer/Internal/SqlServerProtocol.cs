@@ -7,24 +7,26 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
+using IntelliTect.SignalR.SqlServer.Internal.Messages;
 using MessagePack;
 using Microsoft.AspNetCore.Internal;
-using Microsoft.AspNetCore.SignalR.Internal;
+using IntelliTect.SignalR.Internal;
 using Microsoft.AspNetCore.SignalR.Protocol;
+using Microsoft.AspNetCore.SignalR;
 
-namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
+namespace IntelliTect.SignalR.SqlServer.Internal
 {
-    internal class RedisProtocol
+    internal class SqlServerProtocol
     {
         private readonly DefaultHubMessageSerializer _messageSerializer;
 
-        public RedisProtocol(DefaultHubMessageSerializer messageSerializer)
+        public SqlServerProtocol(DefaultHubMessageSerializer messageSerializer)
         {
             _messageSerializer = messageSerializer;
         }
 
         // The Redis Protocol:
-        // * The message type is known in advance because messages are sent to different channels based on type
+        // * The message type is the first byte of the payload. It is not handled by this class.
         // * Invocations are sent to the All, Group, Connection and User channels
         // * Group Commands are sent to the GroupManagement channel
         // * Acks are sent to the Acknowledgement channel.
@@ -50,20 +52,7 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
                 var writer = new MessagePackWriter(memoryBufferWriter);
 
                 writer.WriteArrayHeader(2);
-                if (excludedConnectionIds != null && excludedConnectionIds.Count > 0)
-                {
-                    writer.WriteArrayHeader(excludedConnectionIds.Count);
-                    foreach (var id in excludedConnectionIds)
-                    {
-                        writer.Write(id);
-                    }
-                }
-                else
-                {
-                    writer.WriteArrayHeader(0);
-                }
-
-                WriteHubMessage(ref writer, new InvocationMessage(methodName, args));
+                WriteInvocationCore(ref writer, methodName, args, excludedConnectionIds);
                 writer.Flush();
 
                 return memoryBufferWriter.ToArray();
@@ -73,6 +62,133 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
                 MemoryBufferWriter.Return(memoryBufferWriter);
             }
         }
+
+        public byte[] WriteTargetedInvocation(string target, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        {
+            // Written as a MessagePack 'arr' containing at least these items:
+            // * A MessagePack 'arr' of 'str's representing the excluded ids
+            // * [The output of WriteSerializedHubMessage, which is an 'arr']
+            // Any additional items are discarded.
+
+            var memoryBufferWriter = MemoryBufferWriter.Get();
+            try
+            {
+                var writer = new MessagePackWriter(memoryBufferWriter);
+
+                writer.WriteArrayHeader(3);
+                writer.Write(target);
+                WriteInvocationCore(ref writer, methodName, args, excludedConnectionIds);
+                writer.Flush();
+
+                return memoryBufferWriter.ToArray();
+            }
+            finally
+            {
+                MemoryBufferWriter.Return(memoryBufferWriter);
+            }
+        }
+
+        private void WriteInvocationCore(ref MessagePackWriter writer, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        {
+            // Written as a MessagePack 'arr' containing at least these items:
+            // * A MessagePack 'arr' of 'str's representing the excluded ids
+            // * [The output of WriteSerializedHubMessage, which is an 'arr']
+            // Any additional items are discarded.
+
+            if (excludedConnectionIds != null && excludedConnectionIds.Count > 0)
+            {
+                writer.WriteArrayHeader(excludedConnectionIds.Count);
+                foreach (var id in excludedConnectionIds)
+                {
+                    writer.Write(id);
+                }
+            }
+            else
+            {
+                writer.WriteArrayHeader(0);
+            }
+
+            WriteHubMessage(ref writer, new InvocationMessage(methodName, args));
+        }
+
+
+        public SqlServerInvocation ReadInvocation(ReadOnlyMemory<byte> data)
+        {
+            // See WriteInvocation for the format
+            var reader = new MessagePackReader(data);
+            ValidateArraySize(ref reader, 2, "Invocation");
+
+            return ReadInvocationCore(ref reader);
+        }
+
+        private SqlServerInvocation ReadInvocationCore(ref MessagePackReader reader)
+        {
+            // Read excluded Ids
+            IReadOnlyList<string>? excludedConnectionIds = null;
+            var idCount = reader.ReadArrayHeader();
+            if (idCount > 0)
+            {
+                var ids = new string[idCount];
+                for (var i = 0; i < idCount; i++)
+                {
+                    ids[i] = reader.ReadString();
+                }
+
+                excludedConnectionIds = ids;
+            }
+
+            // Read payload
+            var message = ReadSerializedHubMessage(ref reader);
+            return new SqlServerInvocation(message, excludedConnectionIds);
+        }
+
+        public SqlServerTargetedInvocation ReadTargetedInvocation(ReadOnlyMemory<byte> data)
+        {
+            // See WriteInvocation for the format
+            var reader = new MessagePackReader(data);
+            ValidateArraySize(ref reader, 3, "TargetedInvocation");
+
+            // Read target
+            var target = reader.ReadString();
+
+            var invocation = ReadInvocationCore(ref reader);
+
+            return new SqlServerTargetedInvocation(target, invocation);
+        }
+
+        public byte[] WriteAck(int messageId, string serverName)
+        {
+            // Written as a MessagePack 'arr' containing at least these items:
+            // * An 'int': The Id of the command being acknowledged.
+            // Any additional items are discarded.
+
+            var memoryBufferWriter = MemoryBufferWriter.Get();
+            try
+            {
+                var writer = new MessagePackWriter(memoryBufferWriter);
+
+                writer.WriteArrayHeader(2);
+                writer.Write(messageId);
+                writer.Write(serverName);
+                writer.Flush();
+
+                return memoryBufferWriter.ToArray();
+            }
+            finally
+            {
+                MemoryBufferWriter.Return(memoryBufferWriter);
+            }
+        }
+
+        public AckMessage ReadAck(ReadOnlyMemory<byte> data)
+        {
+            var reader = new MessagePackReader(data);
+
+            // See WriteAck for format
+            ValidateArraySize(ref reader, 2, "Ack");
+            return new AckMessage(reader.ReadInt32(), reader.ReadString());
+        }
+
 
         public byte[] WriteGroupCommand(RedisGroupCommand command)
         {
@@ -105,54 +221,6 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
             }
         }
 
-        public byte[] WriteAck(int messageId)
-        {
-            // Written as a MessagePack 'arr' containing at least these items:
-            // * An 'int': The Id of the command being acknowledged.
-            // Any additional items are discarded.
-
-            var memoryBufferWriter = MemoryBufferWriter.Get();
-            try
-            {
-                var writer = new MessagePackWriter(memoryBufferWriter);
-
-                writer.WriteArrayHeader(1);
-                writer.Write(messageId);
-                writer.Flush();
-
-                return memoryBufferWriter.ToArray();
-            }
-            finally
-            {
-                MemoryBufferWriter.Return(memoryBufferWriter);
-            }
-        }
-
-        public RedisInvocation ReadInvocation(ReadOnlyMemory<byte> data)
-        {
-            // See WriteInvocation for the format
-            var reader = new MessagePackReader(data);
-            ValidateArraySize(ref reader, 2, "Invocation");
-
-            // Read excluded Ids
-            IReadOnlyList<string>? excludedConnectionIds = null;
-            var idCount = reader.ReadArrayHeader();
-            if (idCount > 0)
-            {
-                var ids = new string[idCount];
-                for (var i = 0; i < idCount; i++)
-                {
-                    ids[i] = reader.ReadString();
-                }
-
-                excludedConnectionIds = ids;
-            }
-
-            // Read payload
-            var message = ReadSerializedHubMessage(ref reader);
-            return new RedisInvocation(message, excludedConnectionIds);
-        }
-
         public RedisGroupCommand ReadGroupCommand(ReadOnlyMemory<byte> data)
         {
             var reader = new MessagePackReader(data);
@@ -169,14 +237,6 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
             return new RedisGroupCommand(id, serverName, action, groupName, connectionId);
         }
 
-        public int ReadAck(ReadOnlyMemory<byte> data)
-        {
-            var reader = new MessagePackReader(data);
-
-            // See WriteAck for format
-            ValidateArraySize(ref reader, 1, "Ack");
-            return reader.ReadInt32();
-        }
 
         private void WriteHubMessage(ref MessagePackWriter writer, HubMessage message)
         {

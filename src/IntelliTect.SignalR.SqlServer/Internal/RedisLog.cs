@@ -4,18 +4,17 @@
 using System;
 using System.Linq;
 using Microsoft.Extensions.Logging;
-using StackExchange.Redis;
 
-namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
+namespace IntelliTect.SignalR.SqlServer.Internal
 {
     // We don't want to use our nested static class here because RedisHubLifetimeManager is generic.
     // We'd end up creating separate instances of all the LoggerMessage.Define values for each Hub.
     internal static class RedisLog
     {
-        private static readonly LogDefineOptions SkipEnabledCheckLogOptions = new() { SkipEnabledCheck = true };
+        //private static readonly LogDefineOptions SkipEnabledCheckLogOptions = new() { SkipEnabledCheck = true };
 
-        private static readonly Action<ILogger, string, string, Exception?> _connectingToEndpoints =
-            LoggerMessage.Define<string, string>(LogLevel.Information, new EventId(1, "ConnectingToEndpoints"), "Connecting to Redis endpoints: {Endpoints}. Using Server Name: {ServerName}", SkipEnabledCheckLogOptions);
+        //private static readonly Action<ILogger, string, string, Exception?> _connectingToEndpoints =
+        //    LoggerMessage.Define<string, string>(LogLevel.Information, new EventId(1, "ConnectingToEndpoints"), "Connecting to Redis endpoints: {Endpoints}. Using Server Name: {ServerName}", SkipEnabledCheckLogOptions);
 
         private static readonly Action<ILogger, Exception?> _connected =
             LoggerMessage.Define(LogLevel.Information, new EventId(2, "Connected"), "Connected to Redis.");
@@ -47,13 +46,13 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
         private static readonly Action<ILogger, Exception> _internalMessageFailed =
             LoggerMessage.Define(LogLevel.Warning, new EventId(11, "InternalMessageFailed"), "Error processing message for internal server message.");
 
-        public static void ConnectingToEndpoints(ILogger logger, EndPointCollection endpoints, string serverName)
-        {
-            if (logger.IsEnabled(LogLevel.Information) && endpoints.Count > 0)
-            {
-                _connectingToEndpoints(logger, string.Join(", ", endpoints.Select(e => EndPointCollection.ToString(e))), serverName, null);
-            }
-        }
+        //public static void ConnectingToEndpoints(ILogger logger, EndPointCollection endpoints, string serverName)
+        //{
+        //    if (logger.IsEnabled(LogLevel.Information) && endpoints.Count > 0)
+        //    {
+        //        _connectingToEndpoints(logger, string.Join(", ", endpoints.Select(e => EndPointCollection.ToString(e))), serverName, null);
+        //    }
+        //}
 
         public static void Connected(ILogger logger)
         {

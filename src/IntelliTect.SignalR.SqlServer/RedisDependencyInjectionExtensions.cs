@@ -3,65 +3,64 @@
 
 using System;
 using Microsoft.AspNetCore.SignalR;
-using Microsoft.AspNetCore.SignalR.StackExchangeRedis;
-using StackExchange.Redis;
+using IntelliTect.SignalR.SqlServer;
 
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
     /// Extension methods for configuring Redis-based scale-out for a SignalR Server in an <see cref="ISignalRServerBuilder" />.
     /// </summary>
-    public static class StackExchangeRedisDependencyInjectionExtensions
+    public static class SqlServerSignalRDependencyInjectionExtensions
     {
         /// <summary>
-        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared Redis server.
+        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
-        public static ISignalRServerBuilder AddStackExchangeRedis(this ISignalRServerBuilder signalrBuilder)
+        public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder)
         {
-            return AddStackExchangeRedis(signalrBuilder, o => { });
+            return AddSqlServer(signalrBuilder, o => { });
         }
 
         /// <summary>
-        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared Redis server.
+        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
         /// <param name="redisConnectionString">The connection string used to connect to the Redis server.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
-        public static ISignalRServerBuilder AddStackExchangeRedis(this ISignalRServerBuilder signalrBuilder, string redisConnectionString)
+        public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder, string connectionString)
         {
-            return AddStackExchangeRedis(signalrBuilder, o =>
+            return AddSqlServer(signalrBuilder, o =>
             {
-                o.Configuration = ConfigurationOptions.Parse(redisConnectionString);
+                o.ConnectionString = connectionString;
             });
         }
 
         /// <summary>
-        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared Redis server.
+        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
-        /// <param name="configure">A callback to configure the Redis options.</param>
+        /// <param name="configure">A callback to configure the SQL Server options.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
-        public static ISignalRServerBuilder AddStackExchangeRedis(this ISignalRServerBuilder signalrBuilder, Action<RedisOptions> configure)
+        public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder, Action<SqlServerOptions> configure)
         {
             signalrBuilder.Services.Configure(configure);
-            signalrBuilder.Services.AddSingleton(typeof(HubLifetimeManager<>), typeof(RedisHubLifetimeManager<>));
+            signalrBuilder.Services.AddSingleton(typeof(HubLifetimeManager<>), typeof(SqlServerHubLifetimeManager<>));
             return signalrBuilder;
         }
 
         /// <summary>
-        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared Redis server.
+        /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
-        /// <param name="redisConnectionString">The connection string used to connect to the Redis server.</param>
+        /// <param name="redisConnectionString">The connection string used to connect to the SQL Server database.</param>
         /// <param name="configure">A callback to configure the Redis options.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
-        public static ISignalRServerBuilder AddStackExchangeRedis(this ISignalRServerBuilder signalrBuilder, string redisConnectionString, Action<RedisOptions> configure)
+        public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder, string connectionString, Action<SqlServerOptions> configure)
         {
-            return AddStackExchangeRedis(signalrBuilder, o =>
+            return AddSqlServer(signalrBuilder, o =>
             {
-                o.Configuration = ConfigurationOptions.Parse(redisConnectionString);
+                o.ConnectionString = connectionString;
                 configure(o);
             });
         }

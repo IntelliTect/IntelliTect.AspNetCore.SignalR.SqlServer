@@ -1,0 +1,71 @@
+﻿// Copyright (c) .NET Foundation. All rights reserved.
+// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
+
+using IntelliTect.SignalR.SqlServer;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Diagnostics;
+
+namespace Microsoft.AspNet.SignalR.SqlServer
+{
+    internal class SqlInstaller
+    {
+        private const int SchemaVersion = 1;
+        private const string SchemaTableName = "Schema";
+
+        private readonly string _messagesTableNamePrefix;
+        private readonly ILogger _logger;
+        private readonly SqlServerOptions _options;
+
+        public SqlInstaller(SqlServerOptions options, ILogger logger, string messagesTableNamePrefix)
+        {
+            _logger = logger;
+            _options = options;
+            _messagesTableNamePrefix = messagesTableNamePrefix;
+        }
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Query doesn't come from user code")]
+        public void Install()
+        {
+            _logger.LogInformation("Start installing SignalR SQL objects");
+
+            if (!IsSqlEditionSupported(_options.ConnectionString))
+            {
+                throw new PlatformNotSupportedException(Resources.Error_UnsupportedSqlEdition);
+            }
+
+            var script = GetType().Assembly.StringResource("install.sql");
+
+            script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
+            script = script.Replace("SET @SCHEMA_TABLE_NAME = 'Schema';", "SET @SCHEMA_TABLE_NAME = '" + SchemaTableName + "';");
+            script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
+            script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
+            script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
+
+            var operation = new DbOperation(_options.ConnectionString, script, _logger);
+            operation.ExecuteNonQuery();
+
+            _logger.LogInformation("SignalR SQL objects installed");
+        }
+
+        private bool IsSqlEditionSupported(string connectionString)
+        {
+            var operation = new DbOperation(connectionString, "SELECT SERVERPROPERTY ( 'EngineEdition' )", _logger);
+            var edition = (int)operation.ExecuteScalar()!;
+
+            return (edition >= SqlEngineEdition.Standard && edition <= SqlEngineEdition.Express) ||
+                edition == SqlEngineEdition.SqlAzureManagedInstance;
+        }
+
+        private static class SqlEngineEdition
+        {
+            // See article http://technet.microsoft.com/en-us/library/ms174396.aspx for details on EngineEdition
+            public const int Personal = 1;
+            public const int Standard = 2;
+            public const int Enterprise = 3;
+            public const int Express = 4;
+            public const int SqlAzure = 5;
+            public const int SqlAzureManagedInstance = 8;
+        }
+    }
+}

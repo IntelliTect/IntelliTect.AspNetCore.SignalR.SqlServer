@@ -7,7 +7,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Internal;
 
-namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
+namespace IntelliTect.SignalR.SqlServer.Internal
 {
     internal class AckHandler : IDisposable
     {

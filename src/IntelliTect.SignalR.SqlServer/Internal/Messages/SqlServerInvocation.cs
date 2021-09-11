@@ -1,12 +1,15 @@
-// Copyright (c) .NET Foundation. All rights reserved.
-// Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
-
+﻿using IntelliTect.SignalR;
+using Microsoft.AspNetCore.SignalR;
+using System;
 using System.Collections.Generic;
-using Microsoft.AspNetCore.SignalR.Protocol;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 
-namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
+namespace IntelliTect.SignalR.SqlServer.Internal.Messages
 {
-    internal readonly struct RedisInvocation
+
+    internal readonly struct SqlServerInvocation
     {
         /// <summary>
         /// Gets a list of connections that should be excluded from this invocation.
@@ -19,7 +22,7 @@ namespace Microsoft.AspNetCore.SignalR.StackExchangeRedis.Internal
         /// </summary>
         public SerializedHubMessage Message { get; }
 
-        public RedisInvocation(SerializedHubMessage message, IReadOnlyList<string>? excludedConnectionIds)
+        public SqlServerInvocation(SerializedHubMessage message, IReadOnlyList<string>? excludedConnectionIds)
         {
             Message = message;
             ExcludedConnectionIds = excludedConnectionIds;
