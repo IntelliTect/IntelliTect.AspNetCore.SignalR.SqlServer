@@ -46,7 +46,7 @@ namespace IntelliTect.SignalR.SqlServer
         /// Constructs the <see cref="SqlServerHubLifetimeManager{THub}"/> with types from Dependency Injection.
         /// </summary>
         /// <param name="logger">The logger to write information about what the class is doing.</param>
-        /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the Redis connection.</param>
+        /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the SQL Server connection.</param>
         /// <param name="hubProtocolResolver">The <see cref="IHubProtocolResolver"/> to get an <see cref="IHubProtocol"/> instance when writing to connections.</param>
         public SqlServerHubLifetimeManager(ILogger<SqlServerHubLifetimeManager<THub>> logger,
                                        IOptions<SqlServerOptions> options,
@@ -59,7 +59,7 @@ namespace IntelliTect.SignalR.SqlServer
         /// Constructs the <see cref="SqlServerHubLifetimeManager{THub}"/> with types from Dependency Injection.
         /// </summary>
         /// <param name="logger">The logger to write information about what the class is doing.</param>
-        /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the Redis connection.</param>
+        /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the SQL Server connection.</param>
         /// <param name="hubProtocolResolver">The <see cref="IHubProtocolResolver"/> to get an <see cref="IHubProtocol"/> instance when writing to connections.</param>
         /// <param name="globalHubOptions">The global <see cref="HubOptions"/>.</param>
         /// <param name="hubOptions">The <typeparamref name="THub"/> specific options.</param>
@@ -82,16 +82,15 @@ namespace IntelliTect.SignalR.SqlServer
                 _protocol = new SqlServerProtocol(new DefaultHubMessageSerializer(hubProtocolResolver, supportedProtocols, null));
             }
 
-            //RedisLog.ConnectingToEndpoints(_logger, options.Value.Configuration.EndPoints, _serverName);
-            _ = EnsureRedisServerConnection();
+            _ = EnsureSqlServerConnection();
         }
 
         /// <inheritdoc />
         public override async Task OnConnectedAsync(HubConnectionContext connection)
         {
-            await EnsureRedisServerConnection();
-            var feature = new RedisFeature();
-            connection.Features.Set<IRedisFeature>(feature);
+            await EnsureSqlServerConnection();
+            var feature = new SqlServerFeature();
+            connection.Features.Set<ISqlServerFeature>(feature);
 
             var userTask = Task.CompletedTask;
 
@@ -112,7 +111,7 @@ namespace IntelliTect.SignalR.SqlServer
 
             var tasks = new List<Task>();
 
-            var feature = connection.Features.Get<IRedisFeature>()!;
+            var feature = connection.Features.Get<ISqlServerFeature>()!;
             var groupNames = feature.Groups;
 
             if (groupNames != null)
@@ -138,14 +137,14 @@ namespace IntelliTect.SignalR.SqlServer
         /// <inheritdoc />
         public override Task SendAllAsync(string methodName, object?[] args, CancellationToken cancellationToken = default)
         {
-            var message = _protocol.WriteInvocation(methodName, args);
+            var message = _protocol.WriteInvocationAll(methodName, args, null);
             return PublishAsync(MessageType.InvocationAll, message);
         }
 
         /// <inheritdoc />
         public override Task SendAllExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
         {
-            var message = _protocol.WriteInvocation(methodName, args, excludedConnectionIds);
+            var message = _protocol.WriteInvocationAll(methodName, args, excludedConnectionIds);
             return PublishAsync(MessageType.InvocationAll, message);
         }
 
@@ -165,7 +164,7 @@ namespace IntelliTect.SignalR.SqlServer
                 return connection.WriteAsync(new InvocationMessage(methodName, args), cancellationToken).AsTask();
             }
 
-            var message = _protocol.WriteTargetedInvocation(connectionId, methodName, args, null);
+            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationConnection, connectionId, methodName, args, null);
             return PublishAsync(MessageType.InvocationConnection, message);
         }
 
@@ -177,7 +176,7 @@ namespace IntelliTect.SignalR.SqlServer
                 throw new ArgumentNullException(nameof(groupName));
             }
 
-            var message = _protocol.WriteTargetedInvocation(groupName, methodName, args, null);
+            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationGroup, groupName, methodName, args, null);
             return PublishAsync(MessageType.InvocationGroup, message);
         }
 
@@ -189,14 +188,14 @@ namespace IntelliTect.SignalR.SqlServer
                 throw new ArgumentNullException(nameof(groupName));
             }
 
-            var message = _protocol.WriteTargetedInvocation(groupName, methodName, args, excludedConnectionIds);
+            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationGroup, groupName, methodName, args, excludedConnectionIds);
             return PublishAsync(MessageType.InvocationGroup, message);
         }
 
         /// <inheritdoc />
         public override Task SendUserAsync(string userId, string methodName, object?[] args, CancellationToken cancellationToken = default)
         {
-            var message = _protocol.WriteTargetedInvocation(userId, methodName, args, null);
+            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationUser, userId, methodName, args, null);
             return PublishAsync(MessageType.InvocationUser, message);
         }
 
@@ -286,7 +285,7 @@ namespace IntelliTect.SignalR.SqlServer
         /// <inheritdoc />
         public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
         {
-            if (userIds.Count <= 0)
+            if (userIds.Count == 0)
             {
                 return Task.CompletedTask;
             }
@@ -305,20 +304,16 @@ namespace IntelliTect.SignalR.SqlServer
 
         private async Task PublishAsync(MessageType type, byte[] payload)
         {
-            await EnsureRedisServerConnection();
-            // TODO: Hardcoded to table zero. Should we just get rid of the multiple tables/streams thing?
-            RedisLog.PublishToChannel(_logger, type.ToString());
-            // This is kinda lame that we have to make a whole new array just to add the message type.
-            // Maybe I'll refactor it later on to bake the message type into the payload to begin with.
-            var fullMessage = new byte[payload.Length + 1];
-            fullMessage[0] = (byte)type;
-            payload.CopyTo(fullMessage, 1);
-            await _streams[0].Send(fullMessage);
+            await EnsureSqlServerConnection();
+            _logger.Published(type.ToString());
+
+            var streamIndex = new Random().Next(0, _streams.Count);
+            await _streams[streamIndex].Send(payload);
         }
 
         private Task AddGroupAsyncCore(HubConnectionContext connection, string groupName)
         {
-            var feature = connection.Features.Get<IRedisFeature>()!;
+            var feature = connection.Features.Get<ISqlServerFeature>()!;
             var groupNames = feature.Groups;
 
             lock (groupNames)
@@ -341,7 +336,7 @@ namespace IntelliTect.SignalR.SqlServer
         {
             await _groups.RemoveSubscriptionAsync(groupName, connection);
 
-            var feature = connection.Features.Get<IRedisFeature>()!;
+            var feature = connection.Features.Get<ISqlServerFeature>()!;
             var groupNames = feature.Groups;
             if (groupNames != null)
             {
@@ -357,15 +352,12 @@ namespace IntelliTect.SignalR.SqlServer
             var id = Interlocked.Increment(ref _internalId);
             var ack = _ackHandler.CreateAck(id);
             // Send Add/Remove Group to other servers and wait for an ack or timeout
-            var message = _protocol.WriteGroupCommand(new RedisGroupCommand(id, _serverName, action, groupName, connectionId));
+            var message = _protocol.WriteGroupCommand(new SqlServerGroupCommand(id, _serverName, action, groupName, connectionId));
             await PublishAsync(MessageType.Group, message);
 
             await ack;
         }
 
-        /// <summary>
-        /// Cleans up the Redis connection.
-        /// </summary>
         public void Dispose()
         {
             foreach (var stream in _streams)
@@ -377,7 +369,7 @@ namespace IntelliTect.SignalR.SqlServer
 
         private readonly List<SqlStream> _streams = new List<SqlStream>();
 
-        private async Task EnsureRedisServerConnection()
+        private async Task EnsureSqlServerConnection()
         {
             if (_streams.Count == 0)
             {
@@ -397,12 +389,11 @@ namespace IntelliTect.SignalR.SqlServer
                             var tableName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", _tableNamePrefix, streamIndex);
 
                             var stream = new SqlStream(_options, _logger, streamIndex, tableName);
-                            // Long-running. Intentionally not awaited.
-                            stream.Faulted += (ex) => StartReceiving(streamIndex);
                             stream.Received += (id, message) => OnReceived(streamIndex, id, message);
 
                             _streams.Add(stream);
 
+                            // Long-running. Intentionally not awaited.
                             StartReceiving(streamIndex);
 
                             void StartReceiving(int streamIndex)
@@ -430,36 +421,35 @@ namespace IntelliTect.SignalR.SqlServer
         {
             try
             {
-                var messageType = (MessageType)message[0];
-                var payload = message.AsMemory(1);
+                var messageType = _protocol.ReadMessageType(message);
                 List<Task> tasks;
                 HubConnectionStore? connections;
                 SqlServerInvocation invocation;
 
-                RedisLog.ReceivedFromChannel(_logger, messageType.ToString());
+                _logger.Received(messageType.ToString());
 
                 switch (messageType)
                 {
                     case MessageType.InvocationAll:
 
-                        invocation = _protocol.ReadInvocation(payload);
+                        invocation = _protocol.ReadInvocation(message);
                         connections = _connections;
                         goto multiInvocation;
 
                     case MessageType.InvocationConnection:
-                        var connectionInvocation = _protocol.ReadTargetedInvocation(payload);
+                        var connectionInvocation = _protocol.ReadTargetedInvocation(message);
                         var userConnection = _connections[connectionInvocation.Target];
                         if (userConnection != null) await userConnection.WriteAsync(connectionInvocation.Invocation.Message);
                         return;
 
                     case MessageType.InvocationUser:
-                        var multiInvocation = _protocol.ReadTargetedInvocation(payload);
+                        var multiInvocation = _protocol.ReadTargetedInvocation(message);
                         connections = _users.Get(multiInvocation.Target);
                         invocation = multiInvocation.Invocation;
                         goto multiInvocation;
 
                     case MessageType.InvocationGroup:
-                        multiInvocation = _protocol.ReadTargetedInvocation(payload);
+                        multiInvocation = _protocol.ReadTargetedInvocation(message);
                         connections = _groups.Get(multiInvocation.Target);
                         invocation = multiInvocation.Invocation;
                         goto multiInvocation;
@@ -480,13 +470,13 @@ namespace IntelliTect.SignalR.SqlServer
                         return;
 
                     case MessageType.Ack:
-                        var ack = _protocol.ReadAck(payload);
+                        var ack = _protocol.ReadAck(message);
                         if (ack.ServerName != _serverName) return;
                         _ackHandler.TriggerAck(ack.Id);
                         return;
 
                     case MessageType.Group:
-                        var groupMessage = _protocol.ReadGroupCommand(payload);
+                        var groupMessage = _protocol.ReadGroupCommand(message);
 
                         userConnection = _connections[groupMessage.ConnectionId];
                         if (userConnection == null)
@@ -514,7 +504,7 @@ namespace IntelliTect.SignalR.SqlServer
             }
             catch (Exception ex)
             {
-                RedisLog.InternalMessageFailed(_logger, ex);
+                _logger.InternalMessageFailed(ex);
             }
         }
 
@@ -525,34 +515,12 @@ namespace IntelliTect.SignalR.SqlServer
             return $"{Environment.MachineName}_{Guid.NewGuid():N}";
         }
 
-        private class LoggerTextWriter : TextWriter
-        {
-            private readonly ILogger _logger;
-
-            public LoggerTextWriter(ILogger logger)
-            {
-                _logger = logger;
-            }
-
-            public override Encoding Encoding => Encoding.UTF8;
-
-            public override void Write(char value)
-            {
-
-            }
-
-            public override void WriteLine(string? value)
-            {
-                RedisLog.ConnectionMultiplexerMessage(_logger, value);
-            }
-        }
-
-        private interface IRedisFeature
+        private interface ISqlServerFeature
         {
             HashSet<string> Groups { get; }
         }
 
-        private class RedisFeature : IRedisFeature
+        private class SqlServerFeature : ISqlServerFeature
         {
             public HashSet<string> Groups { get; } = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         }

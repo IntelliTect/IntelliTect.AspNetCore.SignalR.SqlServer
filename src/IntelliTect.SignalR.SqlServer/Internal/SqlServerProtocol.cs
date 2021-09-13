@@ -25,21 +25,24 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             _messageSerializer = messageSerializer;
         }
 
-        // The Redis Protocol:
-        // * The message type is the first byte of the payload. It is not handled by this class.
-        // * Invocations are sent to the All, Group, Connection and User channels
-        // * Group Commands are sent to the GroupManagement channel
-        // * Acks are sent to the Acknowledgement channel.
+        // The SQL Server Protocol:
+        // * Mirrored after the Redis protocol.
+        // * The message type is the first byte of the payload. (enum MessageType). 
         // * See the Write[type] methods for a description of the protocol for each in-depth.
         // * The "Variable length integer" is the length-prefixing format used by BinaryReader/BinaryWriter:
         //   * https://docs.microsoft.com/dotnet/api/system.io.binarywriter.write?view=netcore-2.2
         // * The "Length prefixed string" is the string format used by BinaryReader/BinaryWriter:
         //   * A 7-bit variable length integer encodes the length in bytes, followed by the encoded string in UTF-8.
 
-        public byte[] WriteInvocation(string methodName, object?[] args) =>
-            WriteInvocation(methodName, args, excludedConnectionIds: null);
 
-        public byte[] WriteInvocation(string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        public MessageType ReadMessageType(ReadOnlyMemory<byte> data)
+        {
+            // See WriteInvocation for the format
+            var reader = new MessagePackReader(data);
+            return (MessageType)reader.ReadByte();
+        }
+
+        public byte[] WriteInvocationAll(string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids
@@ -50,7 +53,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             try
             {
                 var writer = new MessagePackWriter(memoryBufferWriter);
-
+                writer.WriteUInt8((byte)MessageType.InvocationAll);
                 writer.WriteArrayHeader(2);
                 WriteInvocationCore(ref writer, methodName, args, excludedConnectionIds);
                 writer.Flush();
@@ -63,7 +66,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             }
         }
 
-        public byte[] WriteTargetedInvocation(string target, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        public byte[] WriteTargetedInvocation(MessageType type, string target, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids
@@ -74,7 +77,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             try
             {
                 var writer = new MessagePackWriter(memoryBufferWriter);
-
+                writer.WriteUInt8((byte)type);
                 writer.WriteArrayHeader(3);
                 writer.Write(target);
                 WriteInvocationCore(ref writer, methodName, args, excludedConnectionIds);
@@ -111,11 +114,11 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             WriteHubMessage(ref writer, new InvocationMessage(methodName, args));
         }
 
-
         public SqlServerInvocation ReadInvocation(ReadOnlyMemory<byte> data)
         {
             // See WriteInvocation for the format
             var reader = new MessagePackReader(data);
+            reader.ReadByte(); // Skip header
             ValidateArraySize(ref reader, 2, "Invocation");
 
             return ReadInvocationCore(ref reader);
@@ -146,6 +149,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
         {
             // See WriteInvocation for the format
             var reader = new MessagePackReader(data);
+            reader.ReadByte(); // Skip header
             ValidateArraySize(ref reader, 3, "TargetedInvocation");
 
             // Read target
@@ -166,7 +170,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             try
             {
                 var writer = new MessagePackWriter(memoryBufferWriter);
-
+                writer.WriteUInt8((byte)MessageType.Ack);
                 writer.WriteArrayHeader(2);
                 writer.Write(messageId);
                 writer.Write(serverName);
@@ -185,12 +189,13 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             var reader = new MessagePackReader(data);
 
             // See WriteAck for format
+            reader.ReadByte(); // Skip header
             ValidateArraySize(ref reader, 2, "Ack");
             return new AckMessage(reader.ReadInt32(), reader.ReadString());
         }
 
 
-        public byte[] WriteGroupCommand(RedisGroupCommand command)
+        public byte[] WriteGroupCommand(SqlServerGroupCommand command)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * An 'int': the Id of the command
@@ -204,6 +209,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             try
             {
                 var writer = new MessagePackWriter(memoryBufferWriter);
+                writer.WriteUInt8((byte)MessageType.Group);
 
                 writer.WriteArrayHeader(5);
                 writer.Write(command.Id);
@@ -221,20 +227,21 @@ namespace IntelliTect.SignalR.SqlServer.Internal
             }
         }
 
-        public RedisGroupCommand ReadGroupCommand(ReadOnlyMemory<byte> data)
+        public SqlServerGroupCommand ReadGroupCommand(ReadOnlyMemory<byte> data)
         {
             var reader = new MessagePackReader(data);
 
             // See WriteGroupCommand for format.
             ValidateArraySize(ref reader, 5, "GroupCommand");
 
+            reader.ReadByte(); // Skip header
             var id = reader.ReadInt32();
             var serverName = reader.ReadString();
             var action = (GroupAction)reader.ReadByte();
             var groupName = reader.ReadString();
             var connectionId = reader.ReadString();
 
-            return new RedisGroupCommand(id, serverName, action, groupName, connectionId);
+            return new SqlServerGroupCommand(id, serverName, action, groupName, connectionId);
         }
 
 

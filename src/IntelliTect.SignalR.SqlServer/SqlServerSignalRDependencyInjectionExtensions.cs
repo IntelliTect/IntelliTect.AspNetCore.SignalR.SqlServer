@@ -8,7 +8,7 @@ using IntelliTect.SignalR.SqlServer;
 namespace Microsoft.Extensions.DependencyInjection
 {
     /// <summary>
-    /// Extension methods for configuring Redis-based scale-out for a SignalR Server in an <see cref="ISignalRServerBuilder" />.
+    /// Extension methods for configuring SQL Server-based scale-out for a SignalR Server in an <see cref="ISignalRServerBuilder" />.
     /// </summary>
     public static class SqlServerSignalRDependencyInjectionExtensions
     {
@@ -26,7 +26,7 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
-        /// <param name="redisConnectionString">The connection string used to connect to the Redis server.</param>
+        /// <param name="connectionString">The connection string used to connect to the SQL Server.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
         public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder, string connectionString)
         {
@@ -53,8 +53,8 @@ namespace Microsoft.Extensions.DependencyInjection
         /// Adds scale-out to a <see cref="ISignalRServerBuilder"/>, using a shared SQL Server database.
         /// </summary>
         /// <param name="signalrBuilder">The <see cref="ISignalRServerBuilder"/>.</param>
-        /// <param name="redisConnectionString">The connection string used to connect to the SQL Server database.</param>
-        /// <param name="configure">A callback to configure the Redis options.</param>
+        /// <param name="connectionString">The connection string used to connect to the SQL Server.</param>
+        /// <param name="configure">A callback to configure the SQL Server options.</param>
         /// <returns>The same instance of the <see cref="ISignalRServerBuilder"/> for chaining.</returns>
         public static ISignalRServerBuilder AddSqlServer(this ISignalRServerBuilder signalrBuilder, string connectionString, Action<SqlServerOptions> configure)
         {

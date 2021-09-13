@@ -3,7 +3,7 @@
 
 namespace IntelliTect.SignalR.SqlServer.Internal
 {
-    internal readonly struct RedisGroupCommand
+    internal readonly struct SqlServerGroupCommand
     {
         /// <summary>
         /// Gets the ID of the group command.
@@ -30,7 +30,7 @@ namespace IntelliTect.SignalR.SqlServer.Internal
         /// </summary>
         public string ConnectionId { get; }
 
-        public RedisGroupCommand(int id, string serverName, GroupAction action, string groupName, string connectionId)
+        public SqlServerGroupCommand(int id, string serverName, GroupAction action, string groupName, string connectionId)
         {
             Id = id;
             ServerName = serverName;
