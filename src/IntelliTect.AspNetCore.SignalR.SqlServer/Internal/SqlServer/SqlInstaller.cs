@@ -1,7 +1,7 @@
 ﻿// Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using IntelliTect.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
@@ -29,10 +29,10 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         {
             _logger.LogInformation("Start installing SignalR SQL objects");
 
-            if (!IsSqlEditionSupported(_options.ConnectionString))
-            {
-                throw new PlatformNotSupportedException(Resources.Error_UnsupportedSqlEdition);
-            }
+            //if (!IsSqlEditionSupported(_options.ConnectionString))
+            //{
+            //    throw new PlatformNotSupportedException(Resources.Error_UnsupportedSqlEdition);
+            //}
 
             var script = GetType().Assembly.StringResource("install.sql");
 

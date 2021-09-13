@@ -307,7 +307,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                 {
                     _logger.LogError("{0}Unexpected SQL notification details: Type={1}, Source={2}, Info={3}", TracePrefix, e.Type, e.Source, e.Info);
 
-                    Faulted(new SqlMessageBusException(String.Format(CultureInfo.InvariantCulture, Resources.Error_UnexpectedSqlNotificationType, e.Type, e.Source, e.Info)));
+                    Faulted(new SqlMessageBusException($"Unexpected SQL notification Type={e.Type}, Source={e.Source}, Info={e.Info}"));
                 }
             }
             else if (e.Type == SqlNotificationType.Subscribe)
@@ -368,7 +368,14 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             catch (InvalidOperationException)
             {
                 Trace.TraceInformation("{0}SQL Service Broker is disabled, disabling query notifications", TracePrefix);
+                _notificationState = NotificationState.Disabled;
+                return false;
+            }
+            catch (NullReferenceException)
+            {
+                // Workaround for https://github.com/dotnet/SqlClient/issues/1264
 
+                Trace.TraceInformation("{0}SQL Service Broker is disabled, disabling query notifications", TracePrefix);
                 _notificationState = NotificationState.Disabled;
                 return false;
             }

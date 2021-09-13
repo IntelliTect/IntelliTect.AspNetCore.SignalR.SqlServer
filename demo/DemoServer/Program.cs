@@ -1,4 +1,4 @@
-using IntelliTect.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
@@ -21,7 +21,12 @@ namespace DemoServer
             Host.CreateDefaultBuilder(args)
                 .ConfigureWebHostDefaults(webBuilder =>
                 {
-                    webBuilder.UseStartup<Startup>();
+                    webBuilder.UseStartup<Startup>()
+                    .ConfigureAppConfiguration((builder, config) => config
+                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                        .AddJsonFile("appsettings.localhost.json", optional: true, reloadOnChange: true)
+                        .AddEnvironmentVariables()
+                    );
                 });
     }
 }
