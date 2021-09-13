@@ -7,7 +7,7 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{62241700-2
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{21874FF3-BE97-4F3B-AD63-EC347FF757FF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliTect.SignalR.SqlServer", "src\IntelliTect.SignalR.SqlServer\IntelliTect.SignalR.SqlServer.csproj", "{62E576F6-E0F9-43AC-848E-97E7E93E4EF0}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliTect.AspNetCore.SignalR.SqlServer", "src\IntelliTect.AspNetCore.SignalR.SqlServer\IntelliTect.AspNetCore.SignalR.SqlServer.csproj", "{62E576F6-E0F9-43AC-848E-97E7E93E4EF0}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DemoServer", "demo\DemoServer\DemoServer.csproj", "{FACCC87C-37E3-4095-9997-75EE3C54CD49}"
 EndProject
