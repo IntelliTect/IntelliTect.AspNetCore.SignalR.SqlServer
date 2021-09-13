@@ -6,7 +6,7 @@ using System.IO;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace IntelliTect.SignalR.SqlServer
+namespace IntelliTect.AspNetCore.SignalR.SqlServer
 {
     /// <summary>
     /// Options used to configure <see cref="SqlServerHubLifetimeManager{THub}"/>.

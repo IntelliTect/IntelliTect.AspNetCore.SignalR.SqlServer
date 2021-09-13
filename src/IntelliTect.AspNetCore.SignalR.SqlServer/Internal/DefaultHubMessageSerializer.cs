@@ -7,7 +7,7 @@ using System.Linq;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 
-namespace IntelliTect.SignalR.Internal
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal class DefaultHubMessageSerializer
     {

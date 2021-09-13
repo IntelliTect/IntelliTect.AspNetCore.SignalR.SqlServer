@@ -18,7 +18,7 @@ namespace Microsoft.AspNet.SignalR
         public static string StringResource(this Assembly assembly, string name)
         {
             string resource;
-            name = "IntelliTect.SignalR.SqlServer.Internal.SqlServer." + name;
+            name = "IntelliTect.AspNetCore.SignalR.SqlServer.Internal.SqlServer." + name;
             using (var resourceStream = assembly.GetManifestResourceStream(name))
             {
                 if (resourceStream == null) throw new ArgumentException("Resource not found", nameof(name));

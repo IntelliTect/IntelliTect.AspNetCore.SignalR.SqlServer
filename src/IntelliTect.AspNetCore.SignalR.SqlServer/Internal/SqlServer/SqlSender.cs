@@ -9,7 +9,7 @@ using System.Data.SqlTypes;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
-using IntelliTect.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 

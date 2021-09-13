@@ -6,8 +6,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
-using IntelliTect.SignalR.SqlServer.Internal.Messages;
-using IntelliTect.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
+using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.Extensions.Logging;
 
 namespace Microsoft.AspNet.SignalR.SqlServer

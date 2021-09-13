@@ -3,7 +3,8 @@
 
 using System;
 using Microsoft.AspNetCore.SignalR;
-using IntelliTect.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer;
+using IntelliTect.AspNetCore.SignalR.SqlServer.Internal;
 
 namespace Microsoft.Extensions.DependencyInjection
 {

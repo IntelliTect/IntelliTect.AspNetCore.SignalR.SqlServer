@@ -9,16 +9,15 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using IntelliTect.SignalR.SqlServer.Internal.Messages;
+using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
 using Microsoft.AspNet.SignalR.SqlServer;
-using IntelliTect.SignalR.Internal;
 using Microsoft.AspNetCore.SignalR.Protocol;
-using IntelliTect.SignalR.SqlServer.Internal;
+using IntelliTect.AspNetCore.SignalR.SqlServer.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.SignalR;
 
-namespace IntelliTect.SignalR.SqlServer
+namespace IntelliTect.AspNetCore.SignalR.SqlServer
 {
     /// <summary>
     /// The SQL Server scaleout provider for multi-server support.

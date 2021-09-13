@@ -1,11 +1,11 @@
-﻿using IntelliTect.SignalR;
+﻿using IntelliTect.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntelliTect.SignalR.SqlServer.Internal.Messages
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages
 {
 
     internal readonly struct SqlServerTargetedInvocation

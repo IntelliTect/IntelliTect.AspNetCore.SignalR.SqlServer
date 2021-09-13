@@ -1,11 +1,11 @@
-﻿using IntelliTect.SignalR;
+﻿using IntelliTect.AspNetCore.SignalR;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace IntelliTect.SignalR.SqlServer.Internal.Messages
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages
 {
     // The size of the enum is defined by the protocol. Do not change it. If you need more than 255 items,
     // add an additional enum.

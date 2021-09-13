@@ -10,7 +10,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\IntelliTect.SignalR.SqlServer\IntelliTect.SignalR.SqlServer.csproj" />
+    <ProjectReference Include="..\..\src\IntelliTect.AspNetCore.SignalR.SqlServer\IntelliTect.AspNetCore.SignalR.SqlServer.csproj" />
   </ItemGroup>
 
 </Project>

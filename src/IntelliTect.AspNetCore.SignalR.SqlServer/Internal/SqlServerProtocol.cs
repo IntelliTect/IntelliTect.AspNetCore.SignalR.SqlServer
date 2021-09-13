@@ -7,14 +7,13 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Runtime.InteropServices;
-using IntelliTect.SignalR.SqlServer.Internal.Messages;
+using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
 using MessagePack;
 using Microsoft.AspNetCore.Internal;
-using IntelliTect.SignalR.Internal;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.AspNetCore.SignalR;
 
-namespace IntelliTect.SignalR.SqlServer.Internal
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal class SqlServerProtocol
     {
