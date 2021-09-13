@@ -20,11 +20,11 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         private readonly SqlReceiver _receiver;
         private readonly string _tracePrefix;
 
-        public SqlStream(SqlServerOptions options, ILogger logger, int streamIndex, string tableName)
+        public SqlStream(SqlServerOptions options, ILogger logger, int streamIndex, string tableName, string tracePrefix)
         {
             _streamIndex = streamIndex;
             _logger = logger;
-            _tracePrefix = String.Format(CultureInfo.InvariantCulture, "Stream {0} : ", _streamIndex);
+            _tracePrefix = tracePrefix;
 
             Queried += () => { };
             Received += (_, __) => { };

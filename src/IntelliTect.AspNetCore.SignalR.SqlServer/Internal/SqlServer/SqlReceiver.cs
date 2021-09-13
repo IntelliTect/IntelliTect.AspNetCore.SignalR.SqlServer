@@ -27,7 +27,6 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         private string _selectSql = "SELECT [PayloadId], [Payload], [InsertedOn] FROM [{0}].[{1}] WHERE [PayloadId] > @PayloadId";
         private ObservableDbOperation? _dbOperation;
         private volatile bool _disposed;
-        private CancellationTokenSource _receiveCancellation;
 
         public SqlReceiver(SqlServerOptions options, ILogger logger, string tableName, string tracePrefix)
         {

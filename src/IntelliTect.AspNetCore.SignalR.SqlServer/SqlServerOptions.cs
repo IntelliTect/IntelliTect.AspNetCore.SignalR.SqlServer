@@ -29,5 +29,19 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         /// The name of the database schema to use for the underlying SQL Server Tables.
         /// </summary>
         public string SchemaName { get; set; } = "SignalR";
+
+        /// <summary>
+        /// Function that determines the part of the SQL Server table name that identifies the Hub.
+        /// It should be assumed that 15 characters of SQL Server's 128 character max are not available for use.
+        /// By default, uses the Hub's unqualified type name.
+        /// </summary>
+        public Func<Type, string> TableSlugGenerator { get; set; } = type => type.Name;
+
+        /// <summary>
+        /// If true, on startup the application will attempt to automatically enable SQL Server Service Broker.
+        /// Service Broker allows for more performant operation. It can be manually enabled on the server with
+        /// "ALTER DATABASE [DatabaseName] SET ENABLE_BROKER". It requires an exclusive lock on the database.
+        /// </summary>
+        public bool AutoEnableServiceBroker { get; set; } = false;
     }
 }

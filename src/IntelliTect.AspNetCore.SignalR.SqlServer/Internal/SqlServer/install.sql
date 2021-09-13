@@ -159,6 +159,6 @@ ELSE -- @CURRENT_SCHEMA_VERSION > @TARGET_SCHEMA_VERSION
 	BEGIN
 		-- Configured SqlMessageBus is lower version than current DB schema, just bail out
 		ROLLBACK TRANSACTION;
-		RAISERROR(N'SignalR database current schema version %d is newer than the configured SqlMessageBus schema version %d. Please update to the latest Microsoft.AspNet.SignalR.SqlServer NuGet package.', 11, 1,
+		RAISERROR(N'SignalR database current schema version %d is newer than the configured SqlMessageBus schema version %d. Please update to the latest IntelliTect.AspNetCore.SignalR.SqlServer NuGet package.', 11, 1,
 			@CURRENT_SCHEMA_VERSION, @TARGET_SCHEMA_VERSION);
 	END

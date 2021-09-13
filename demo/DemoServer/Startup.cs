@@ -26,7 +26,13 @@ namespace DemoServer
         {
             services.AddRazorPages();
             services.AddSignalR()
-                .AddSqlServer(Configuration.GetConnectionString("Default"));
+                .AddSqlServer(o =>
+                {
+                    o.ConnectionString = Configuration.GetConnectionString("Default");
+                    o.AutoEnableServiceBroker = true;
+                    o.TableCount = 1;
+                    o.SchemaName = "Signalrcore";
+                });
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.
@@ -53,7 +59,8 @@ namespace DemoServer
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapRazorPages();
-                endpoints.MapHub<ChatHub>("/chatHub");
+                endpoints.MapHub<ChatHubA>("/chatHubA");
+                //endpoints.MapHub<ChatHubB>("/chatHubB");
             });
         }
     }

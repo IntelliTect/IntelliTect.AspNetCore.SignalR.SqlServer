@@ -34,7 +34,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         private readonly ManualResetEventSlim _stopHandle = new ManualResetEventSlim(true);
         private readonly IDbBehavior _dbBehavior;
 
-        private string _dependencyQueue = Guid.NewGuid().ToString();
+        private string? _dependencyQueue = null;// Guid.NewGuid().ToString();
 
         private volatile bool _disposing;
         private long _notificationState;
@@ -130,7 +130,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 
                     if (recordCount > 0)
                     {
-                        _logger.LogTrace("{0}{1} records received", TracePrefix, recordCount);
+                        _logger.LogDebug("{0}{1} records received", TracePrefix, recordCount);
 
                         // We got records so start the retry loop again
                         i = -1;
@@ -154,7 +154,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                             // No records after all retries, set up a SQL notification
                             try
                             {
-                                _logger.LogTrace("{0}Setting up SQL notification", TracePrefix);
+                                _logger.LogDebug("{0}Setting up SQL notification", TracePrefix);
 
                                 recordCount = ExecuteReader(processRecord, command =>
                                 {
@@ -165,7 +165,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 
                                 if (recordCount > 0)
                                 {
-                                    _logger.LogTrace("{0}Records were returned by the command that sets up the SQL notification, restarting the receive loop", TracePrefix);
+                                    _logger.LogDebug("{0}Records were returned by the command that sets up the SQL notification, restarting the receive loop", TracePrefix);
 
                                     i = -1;
                                     break; // break the inner for loop
@@ -186,7 +186,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                                     {
                                         // Failed to change _notificationState from ProcessingUpdates to AwaitingNotification, it was already NotificationReceived
 
-                                        _logger.LogTrace("{0}The SQL notification fired before the receive loop returned, restarting the receive loop", TracePrefix);
+                                        _logger.LogDebug("{0}The SQL notification fired before the receive loop returned, restarting the receive loop", TracePrefix);
 
                                         i = -1;
                                         break; // break the inner for loop
@@ -261,7 +261,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
          SuppressMessage("Microsoft.Usage", "CA1801:ReviewUnusedParameters", MessageId = "sender", Justification = "Event handler")]
         protected virtual void SqlDependency_OnChange(SqlNotificationEventArgs e, Action<IDataRecord, DbOperation> processRecord)
         {
-            Trace.TraceInformation("{0}SQL notification change fired", TracePrefix);
+            _logger.LogDebug("{0}SQL notification change fired", TracePrefix);
 
             lock (_stopLocker)
             {
@@ -276,7 +276,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 
             if (previousState == NotificationState.NotificationReceived)
             {
-                Trace.TraceError("{0}Overlapping SQL change notifications received, this should never happen, BUG!", TracePrefix);
+                _logger.LogError("{0}Overlapping SQL change notifications received, this should never happen, BUG!", TracePrefix);
                 
                 return;
             }
@@ -367,7 +367,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             }
             catch (InvalidOperationException)
             {
-                Trace.TraceInformation("{0}SQL Service Broker is disabled, disabling query notifications", TracePrefix);
+                _logger.LogWarning("{0}SQL Service Broker is disabled. Falling back on periodic polling.", TracePrefix);
                 _notificationState = NotificationState.Disabled;
                 return false;
             }
@@ -375,13 +375,13 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             {
                 // Workaround for https://github.com/dotnet/SqlClient/issues/1264
 
-                Trace.TraceInformation("{0}SQL Service Broker is disabled, disabling query notifications", TracePrefix);
+                _logger.LogWarning("{0}SQL Service Broker is disabled. Falling back on periodic polling.", TracePrefix);
                 _notificationState = NotificationState.Disabled;
                 return false;
             }
             catch (Exception ex)
             {
-                Trace.TraceError("{0}Error starting SQL notification listener: {1}", TracePrefix, ex);
+                _logger.LogError(ex, "{0}Error starting SQL notification listener", TracePrefix);
 
                 return false;
             }
@@ -405,7 +405,7 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                 }
                 catch (Exception stopEx)
                 {
-                    Trace.TraceError("{0}Error occurred while stopping SQL notification listener: {1}", TracePrefix, stopEx);
+                    _logger.LogError(stopEx, "{0}Error occurred while stopping SQL notification listener: {1}", TracePrefix);
                 }
             }
 

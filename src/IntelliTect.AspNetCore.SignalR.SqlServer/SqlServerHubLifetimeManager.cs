@@ -34,9 +34,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         private readonly SqlServerProtocol _protocol;
         private readonly SemaphoreSlim _connectionLock = new SemaphoreSlim(1);
 
-        // TODO: Should we use a message table per hub? The classic version didn't.
-        //private readonly string _tableNamePrefix = "Messages_" + typeof(THub).FullName!;
-        private readonly string _tableNamePrefix = "Messages";
+        private readonly string _tableNamePrefix;
 
         private readonly AckHandler _ackHandler;
         private int _internalId;
@@ -71,6 +69,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             _logger = logger;
             _options = options.Value;
             _ackHandler = new AckHandler();
+
+            _tableNamePrefix = "Messages_" + _options.TableSlugGenerator(typeof(THub));
+
             if (globalHubOptions != null && hubOptions != null)
             {
                 _protocol = new SqlServerProtocol(new DefaultHubMessageSerializer(hubProtocolResolver, globalHubOptions.Value.SupportedProtocols, hubOptions.Value.SupportedProtocols));
@@ -386,8 +387,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                         {
                             var streamIndex = i;
                             var tableName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", _tableNamePrefix, streamIndex);
+                            var tracePrefix = $"{typeof(THub).FullName}:{streamIndex}: ";
 
-                            var stream = new SqlStream(_options, _logger, streamIndex, tableName);
+                            var stream = new SqlStream(_options, _logger, streamIndex, tableName, tracePrefix);
                             stream.Received += (id, message) => OnReceived(streamIndex, id, message);
 
                             _streams.Add(stream);

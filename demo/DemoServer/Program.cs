@@ -26,7 +26,15 @@ namespace DemoServer
                         .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                         .AddJsonFile("appsettings.localhost.json", optional: true, reloadOnChange: true)
                         .AddEnvironmentVariables()
-                    );
+                    )
+                    .ConfigureLogging(builder =>
+                    {
+                        builder.AddSystemdConsole(options =>
+                        {
+                            options.IncludeScopes = true;
+                            options.TimestampFormat = "hh:mm:ss ";
+                        });
+                    });
                 });
     }
 }

@@ -11,7 +11,6 @@ namespace Microsoft.AspNet.SignalR.SqlServer
     internal class SqlInstaller
     {
         private const int SchemaVersion = 1;
-        private const string SchemaTableName = "Schema";
 
         private readonly string _messagesTableNamePrefix;
         private readonly ILogger _logger;
@@ -29,43 +28,34 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         {
             _logger.LogInformation("Start installing SignalR SQL objects");
 
-            //if (!IsSqlEditionSupported(_options.ConnectionString))
-            //{
-            //    throw new PlatformNotSupportedException(Resources.Error_UnsupportedSqlEdition);
-            //}
+            string script;
+            DbOperation operation;
 
-            var script = GetType().Assembly.StringResource("install.sql");
+            if (_options.AutoEnableServiceBroker)
+            {
+                try
+                {
+                    script = GetType().Assembly.StringResource("enable-broker.sql");
+                    operation = new DbOperation(_options.ConnectionString, script, _logger);
+                    operation.ExecuteNonQuery();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Unable to automatically enable SQL Server Service Broker.");
+                }
+            }
+
+            script = GetType().Assembly.StringResource("install.sql");
 
             script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
-            script = script.Replace("SET @SCHEMA_TABLE_NAME = 'Schema';", "SET @SCHEMA_TABLE_NAME = '" + SchemaTableName + "';");
             script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
             script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
             script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
 
-            var operation = new DbOperation(_options.ConnectionString, script, _logger);
+            operation = new DbOperation(_options.ConnectionString, script, _logger);
             operation.ExecuteNonQuery();
 
             _logger.LogInformation("SignalR SQL objects installed");
-        }
-
-        private bool IsSqlEditionSupported(string connectionString)
-        {
-            var operation = new DbOperation(connectionString, "SELECT SERVERPROPERTY ( 'EngineEdition' )", _logger);
-            var edition = (int)operation.ExecuteScalar()!;
-
-            return (edition >= SqlEngineEdition.Standard && edition <= SqlEngineEdition.Express) ||
-                edition == SqlEngineEdition.SqlAzureManagedInstance;
-        }
-
-        private static class SqlEngineEdition
-        {
-            // See article http://technet.microsoft.com/en-us/library/ms174396.aspx for details on EngineEdition
-            public const int Personal = 1;
-            public const int Standard = 2;
-            public const int Enterprise = 3;
-            public const int Express = 4;
-            public const int SqlAzure = 5;
-            public const int SqlAzureManagedInstance = 8;
         }
     }
 }
