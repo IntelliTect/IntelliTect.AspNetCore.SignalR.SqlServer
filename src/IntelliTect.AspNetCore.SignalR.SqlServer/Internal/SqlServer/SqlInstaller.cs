@@ -2,9 +2,11 @@
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
 using IntelliTect.AspNetCore.SignalR.SqlServer;
+using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Diagnostics;
+using System.Threading.Tasks;
 
 namespace Microsoft.AspNet.SignalR.SqlServer
 {
@@ -23,21 +25,20 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             _messagesTableNamePrefix = messagesTableNamePrefix;
         }
 
-        [System.Diagnostics.CodeAnalysis.SuppressMessage("Microsoft.Security", "CA2100:Review SQL queries for security vulnerabilities", Justification = "Query doesn't come from user code")]
-        public void Install()
+        public async Task Install()
         {
             _logger.LogInformation("Start installing SignalR SQL objects");
 
-            string script;
-            DbOperation operation;
+            using var connection = new SqlConnection(_options.ConnectionString);
+            await connection.OpenAsync();
+            using var command = connection.CreateCommand();
 
             if (_options.AutoEnableServiceBroker)
             {
                 try
                 {
-                    script = GetType().Assembly.StringResource("enable-broker.sql");
-                    operation = new DbOperation(_options.ConnectionString, script, _logger);
-                    operation.ExecuteNonQuery();
+                    command.CommandText = GetType().Assembly.StringResource("enable-broker.sql");
+                    await command.ExecuteNonQueryAsync();
                 }
                 catch (Exception ex)
                 {
@@ -45,15 +46,15 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                 }
             }
 
-            script = GetType().Assembly.StringResource("install.sql");
+            var script = GetType().Assembly.StringResource("install.sql");
 
             script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
             script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
             script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
             script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
 
-            operation = new DbOperation(_options.ConnectionString, script, _logger);
-            operation.ExecuteNonQuery();
+            command.CommandText = script;
+            await command.ExecuteNonQueryAsync();
 
             _logger.LogInformation("SignalR SQL objects installed");
         }

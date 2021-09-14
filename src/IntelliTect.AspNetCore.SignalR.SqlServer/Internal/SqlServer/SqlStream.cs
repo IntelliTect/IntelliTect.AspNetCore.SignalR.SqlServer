@@ -26,26 +26,13 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             _logger = logger;
             _tracePrefix = tracePrefix;
 
-            Queried += () => { };
-            Received += (_, __) => { };
-            Faulted += _ => { };
-
             _sender = new SqlSender(options, logger, tableName);
             _receiver = new SqlReceiver(options, logger, tableName, _tracePrefix);
-            _receiver.Queried += () => Queried();
-            _receiver.Faulted += (ex) => Faulted(ex);
-            _receiver.Received += (id, messages) => Received(id, messages);
         }
 
-        public event Action Queried;
-
-        public event Action<ulong, byte[]> Received;
-
-        public event Action<Exception> Faulted;
-
-        public Task StartReceiving()
+        public Task StartReceiving(Func<long, byte[], Task> onReceived)
         {
-            return _receiver.StartReceiving();
+            return _receiver.Start(onReceived);
         }
 
         public Task Send(byte[] message)

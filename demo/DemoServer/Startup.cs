@@ -30,8 +30,8 @@ namespace DemoServer
                 {
                     o.ConnectionString = Configuration.GetConnectionString("Default");
                     o.AutoEnableServiceBroker = true;
-                    o.TableCount = 1;
-                    o.SchemaName = "Signalrcore";
+                    o.TableCount = 50;
+                    //o.SchemaName = "Signalrcore";
                 });
         }
 
@@ -60,7 +60,7 @@ namespace DemoServer
             {
                 endpoints.MapRazorPages();
                 endpoints.MapHub<ChatHubA>("/chatHubA");
-                //endpoints.MapHub<ChatHubB>("/chatHubB");
+                endpoints.MapHub<ChatHubB>("/chatHubB");
             });
         }
     }

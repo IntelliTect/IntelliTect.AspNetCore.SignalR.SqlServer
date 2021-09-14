@@ -33,11 +33,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         private readonly string _serverName = GenerateServerName();
         private readonly SqlServerProtocol _protocol;
         private readonly SemaphoreSlim _connectionLock = new SemaphoreSlim(1);
+        private readonly List<SqlStream> _streams = new List<SqlStream>();
 
         private readonly string _tableNamePrefix;
 
         private readonly AckHandler _ackHandler;
         private int _internalId;
+        private bool _disposed;
 
         /// <summary>
         /// Constructs the <see cref="SqlServerHubLifetimeManager{THub}"/> with types from Dependency Injection.
@@ -360,14 +362,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
 
         public void Dispose()
         {
+            _disposed = true;
             foreach (var stream in _streams)
             {
                 stream.Dispose();
             }
             _ackHandler.Dispose();
         }
-
-        private readonly List<SqlStream> _streams = new List<SqlStream>();
 
         private async Task EnsureSqlServerConnection()
         {
@@ -381,7 +382,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                         // NOTE: Called from a ThreadPool thread
 
                         var installer = new SqlInstaller(_options, _logger, _tableNamePrefix);
-                        installer.Install();
+                        await installer.Install();
 
                         for (var i = 0; i < _options.TableCount; i++)
                         {
@@ -389,19 +390,25 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                             var tableName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", _tableNamePrefix, streamIndex);
                             var tracePrefix = $"{typeof(THub).FullName}:{streamIndex}: ";
 
-                            var stream = new SqlStream(_options, _logger, streamIndex, tableName, tracePrefix);
-                            stream.Received += (id, message) => OnReceived(streamIndex, id, message);
+                            var stream = new SqlStream(
+                                _options,
+                                _logger,
+                                streamIndex,
+                                tableName,
+                                tracePrefix
+                            );
 
                             _streams.Add(stream);
 
-                            // Long-running. Intentionally not awaited.
                             StartReceiving(streamIndex);
 
                             void StartReceiving(int streamIndex)
                             {
-                                stream.StartReceiving()
+                                stream.StartReceiving((id, message) => OnReceived(message))
                                     .ContinueWith(async t =>
                                     {
+                                        if (_disposed) return;
+
                                         // Try again in a little bit
                                         await Task.Delay(2000);
                                         StartReceiving(streamIndex);
@@ -418,95 +425,88 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             }
         }
 
-        private async Task OnReceived(int streamIndex, ulong id, byte[] message)
+        private async Task OnReceived(byte[] message)
         {
-            try
+            var messageType = _protocol.ReadMessageType(message);
+            List<Task> tasks;
+            HubConnectionStore? connections;
+            SqlServerInvocation invocation;
+
+            _logger.Received(messageType.ToString());
+
+            switch (messageType)
             {
-                var messageType = _protocol.ReadMessageType(message);
-                List<Task> tasks;
-                HubConnectionStore? connections;
-                SqlServerInvocation invocation;
+                case MessageType.InvocationAll:
 
-                _logger.Received(messageType.ToString());
+                    invocation = _protocol.ReadInvocation(message);
+                    connections = _connections;
+                    goto multiInvocation;
 
-                switch (messageType)
-                {
-                    case MessageType.InvocationAll:
+                case MessageType.InvocationConnection:
+                    var connectionInvocation = _protocol.ReadTargetedInvocation(message);
+                    var userConnection = _connections[connectionInvocation.Target];
+                    if (userConnection != null) await userConnection.WriteAsync(connectionInvocation.Invocation.Message);
+                    return;
 
-                        invocation = _protocol.ReadInvocation(message);
-                        connections = _connections;
-                        goto multiInvocation;
+                case MessageType.InvocationUser:
+                    var multiInvocation = _protocol.ReadTargetedInvocation(message);
+                    connections = _users.Get(multiInvocation.Target);
+                    invocation = multiInvocation.Invocation;
+                    goto multiInvocation;
 
-                    case MessageType.InvocationConnection:
-                        var connectionInvocation = _protocol.ReadTargetedInvocation(message);
-                        var userConnection = _connections[connectionInvocation.Target];
-                        if (userConnection != null) await userConnection.WriteAsync(connectionInvocation.Invocation.Message);
-                        return;
+                case MessageType.InvocationGroup:
+                    multiInvocation = _protocol.ReadTargetedInvocation(message);
+                    connections = _groups.Get(multiInvocation.Target);
+                    invocation = multiInvocation.Invocation;
+                    goto multiInvocation;
 
-                    case MessageType.InvocationUser:
-                        var multiInvocation = _protocol.ReadTargetedInvocation(message);
-                        connections = _users.Get(multiInvocation.Target);
-                        invocation = multiInvocation.Invocation;
-                        goto multiInvocation;
+                multiInvocation:
+                    if (connections == null) return;
 
-                    case MessageType.InvocationGroup:
-                        multiInvocation = _protocol.ReadTargetedInvocation(message);
-                        connections = _groups.Get(multiInvocation.Target);
-                        invocation = multiInvocation.Invocation;
-                        goto multiInvocation;
-
-                    multiInvocation:
-                        if (connections == null) return;
-
-                        tasks = new List<Task>(connections.Count);
-                        foreach (var connection in connections)
+                    tasks = new List<Task>(connections.Count);
+                    foreach (var connection in connections)
+                    {
+                        if (invocation.ExcludedConnectionIds?.Contains(connection.ConnectionId) == true)
                         {
-                            if (invocation.ExcludedConnectionIds?.Contains(connection.ConnectionId) == true)
-                            {
-                                continue;
-                            }
-                            tasks.Add(connection.WriteAsync(invocation.Message).AsTask());
+                            continue;
                         }
-                        await Task.WhenAll(tasks);
+                        tasks.Add(connection.WriteAsync(invocation.Message).AsTask());
+                    }
+                    await Task.WhenAll(tasks);
+                    return;
+
+                case MessageType.Ack:
+                    var ack = _protocol.ReadAck(message);
+                    if (ack.ServerName != _serverName) return;
+                    _ackHandler.TriggerAck(ack.Id);
+                    return;
+
+                case MessageType.Group:
+                    var groupMessage = _protocol.ReadGroupCommand(message);
+
+                    userConnection = _connections[groupMessage.ConnectionId];
+                    if (userConnection == null)
+                    {
+                        // user not on this server
                         return;
+                    }
 
-                    case MessageType.Ack:
-                        var ack = _protocol.ReadAck(message);
-                        if (ack.ServerName != _serverName) return;
-                        _ackHandler.TriggerAck(ack.Id);
-                        return;
+                    if (groupMessage.Action == GroupAction.Remove)
+                    {
+                        await RemoveGroupAsyncCore(userConnection, groupMessage.GroupName);
+                    }
 
-                    case MessageType.Group:
-                        var groupMessage = _protocol.ReadGroupCommand(message);
+                    if (groupMessage.Action == GroupAction.Add)
+                    {
+                        await AddGroupAsyncCore(userConnection, groupMessage.GroupName);
+                    }
 
-                        userConnection = _connections[groupMessage.ConnectionId];
-                        if (userConnection == null)
-                        {
-                            // user not on this server
-                            return;
-                        }
-
-                        if (groupMessage.Action == GroupAction.Remove)
-                        {
-                            await RemoveGroupAsyncCore(userConnection, groupMessage.GroupName);
-                        }
-
-                        if (groupMessage.Action == GroupAction.Add)
-                        {
-                            await AddGroupAsyncCore(userConnection, groupMessage.GroupName);
-                        }
-
-                        // Send an ack to the server that sent the original command.
-                        await PublishAsync(MessageType.Ack, _protocol.WriteAck(groupMessage.Id, groupMessage.ServerName));
-                        return;
-                }
-
-                throw new NotImplementedException();
+                    // Send an ack to the server that sent the original command.
+                    await PublishAsync(MessageType.Ack, _protocol.WriteAck(groupMessage.Id, groupMessage.ServerName));
+                    return;
             }
-            catch (Exception ex)
-            {
-                _logger.InternalMessageFailed(ex);
-            }
+
+            _logger.LogWarning($"Unknown message type {messageType}");
         }
 
         private static string GenerateServerName()

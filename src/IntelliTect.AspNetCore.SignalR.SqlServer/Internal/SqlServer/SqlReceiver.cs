@@ -17,16 +17,31 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 {
     internal class SqlReceiver : IDisposable
     {
+        private readonly Tuple<int, int>[] _updateLoopRetryDelays = new[] {
+            Tuple.Create(0, 3),    // 0ms x 3
+            Tuple.Create(10, 3),   // 10ms x 3
+            Tuple.Create(50, 2),   // 50ms x 2
+            Tuple.Create(100, 2),  // 100ms x 2
+            Tuple.Create(200, 2),  // 200ms x 2
+            Tuple.Create(1000, 2), // 1000ms x 2
+            Tuple.Create(1500, 2), // 1500ms x 2
+            Tuple.Create(3000, 1)  // 3000ms x 1
+        };
+        private readonly static TimeSpan _dependencyTimeout = TimeSpan.FromSeconds(60);
+
+        private CancellationTokenSource _cts = new();
+        private bool _notificationsDisabled;
+
         private readonly SqlServerOptions _options;
         private readonly string _tableName;
         private readonly ILogger _logger;
         private readonly string _tracePrefix;
 
         private long? _lastPayloadId = null;
-        private string _maxIdSql = "SELECT [PayloadId] FROM [{0}].[{1}_Id]";
-        private string _selectSql = "SELECT [PayloadId], [Payload], [InsertedOn] FROM [{0}].[{1}] WHERE [PayloadId] > @PayloadId";
-        private ObservableDbOperation? _dbOperation;
-        private volatile bool _disposed;
+        private Func<long, byte[], Task>? _onReceived = null;
+        private bool _disposed;
+        private readonly string _maxIdSql = "SELECT [PayloadId] FROM [{0}].[{1}_Id]";
+        private readonly string _selectSql = "SELECT [PayloadId], [Payload], [InsertedOn] FROM [{0}].[{1}] WHERE [PayloadId] > @PayloadId";
 
         public SqlReceiver(SqlServerOptions options, ILogger logger, string tableName, string tracePrefix)
         {
@@ -35,109 +50,240 @@ namespace Microsoft.AspNet.SignalR.SqlServer
             _tracePrefix = tracePrefix;
             _logger = logger;
 
-            Queried += () => { };
-            Received += (_, __) => { };
-            Faulted += _ => { };
-
             _maxIdSql = String.Format(CultureInfo.InvariantCulture, _maxIdSql, _options.SchemaName, _tableName);
             _selectSql = String.Format(CultureInfo.InvariantCulture, _selectSql, _options.SchemaName, _tableName);
         }
 
-        public event Action Queried;
-
-        public event Action<ulong, byte[]> Received;
-
-        public event Action<Exception> Faulted;
-
-        public Task StartReceiving()
+        public Task Start(Func<long, byte[], Task> onReceived)
         {
-            var tcs = new TaskCompletionSource<object?>();
+            if (_disposed) throw new ObjectDisposedException(null);
 
-            Task.Factory.StartNew(Receive, tcs, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+            _cts.Cancel();
+            _cts.Dispose();
+            _cts = new();
 
-            return tcs.Task;
+            _onReceived = onReceived;
+
+            return Task.Factory.StartNew(StartLoop, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
         }
 
-        public void Dispose()
+        private async Task StartLoop()
         {
-            lock (this)
-            {
-                if (_dbOperation != null)
-                {
-                    _dbOperation.Dispose();
-                }
-                _disposed = true;
-                _logger.LogInformation("{0}SqlReceiver disposed", _tracePrefix);
-            }
-        }
-
-        [SuppressMessage("Microsoft.Reliability", "CA2000:Dispose objects before losing scope", Justification = "Class level variable"),
-         SuppressMessage("Microsoft.Design", "CA1031:DoNotCatchGeneralExceptionTypes", Justification = "On a background thread with explicit error processing")]
-        private void Receive(object? state)
-        {
-            var tcs = (TaskCompletionSource<object?>)state!;
+            if (_cts.IsCancellationRequested) return;
 
             if (!_lastPayloadId.HasValue)
             {
-                var lastPayloadIdOperation = new DbOperation(_options.ConnectionString, _maxIdSql, _logger)
-                {
-                    TracePrefix = _tracePrefix
-                };
+                _lastPayloadId = await GetLastPayloadId();
+            }
+
+            if (_cts.IsCancellationRequested) return;
+
+            Func<CancellationToken, Task> loop = StartSqlDependencyListener()
+                ? NotificationLoop
+                : PollingLoop;
+
+            await loop(_cts.Token);
+        }
+
+        /// <summary>
+        /// Loop until cancelled, using SQL service broker notifications to watch for new rows.
+        /// </summary>
+        private async Task NotificationLoop(CancellationToken cancellationToken)
+        {
+            while (StartSqlDependencyListener())
+            {
+                if (cancellationToken.IsCancellationRequested) return;
 
                 try
                 {
-                    _lastPayloadId = (long?)lastPayloadIdOperation.ExecuteScalar();
-                    Queried();
+                    _logger.LogDebug("{0}Setting up SQL notification", _tracePrefix);
 
-                    _logger.LogTrace("{0}SqlReceiver started, initial payload id={1}", _tracePrefix, _lastPayloadId);
+                    var tcs = new TaskCompletionSource<SqlNotificationEventArgs>();
+                    var recordCount = await ReadRows(command =>
+                    {
+                        var dependency = new SqlDependency(command, null, (int)_dependencyTimeout.TotalSeconds);
+                        dependency.OnChange += (o, e) => tcs.SetResult(e);
+                    });
 
-                    // Complete the StartReceiving task as we've successfully initialized the payload ID
-                    tcs.TrySetResult(null);
+                    if (recordCount > 0)
+                    {
+                        _logger.LogDebug("{0}Records were returned by the command that sets up the SQL notification, restarting the receive loop", _tracePrefix);
+                        continue;
+                    }
+
+                    _logger.LogTrace("{0}No records received while setting up SQL notification", _tracePrefix);
+
+                    var depResult = await tcs.Task;
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    // Check notification args for issues
+                    switch (depResult.Type)
+                    {
+                        case SqlNotificationType.Change when depResult.Info is SqlNotificationInfo.Update:
+                            // Typically means new records are available. (TODO: verify this?).
+                            // Loop again to pick them up by performing another query.
+                            _logger.LogTrace("{0}SQL notification details: Type={1}, Source={2}, Info={3}", _tracePrefix, depResult.Type, depResult.Source, depResult.Info); continue;
+
+                        case SqlNotificationType.Change when depResult.Source is SqlNotificationSource.Timeout:
+                            // Expected while there is no activity. We put a timeout on our SqlDependency so they're not running infinitely.
+                            _logger.LogTrace("{0}SQL notification timed out", _tracePrefix);
+                            break;
+
+                        case SqlNotificationType.Change:
+                            throw new InvalidOperationException($"Unexpected SQL notification Type={depResult.Type}, Source={depResult.Source}, Info={depResult.Info}");
+
+                        case SqlNotificationType.Subscribe:
+                            _logger.LogError("{0}SQL notification subscription error: Type={1}, Source={2}, Info={3}", _tracePrefix, depResult.Type, depResult.Source, depResult.Info);
+
+                            if (depResult.Info == SqlNotificationInfo.TemplateLimit)
+                            {
+                                // We've hit a subscription limit, pause for a bit then start again
+                                await Task.Delay(2000, cancellationToken);
+                            }
+                            else
+                            {
+                                // Unknown subscription error, let's stop using query notifications
+                                _notificationsDisabled = true;
+                                await StartLoop();
+                                return;
+                            }
+                            break;
+                    }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "{0}SqlReceiver error starting", _tracePrefix);
+                    _logger.LogError(ex, "{0}Error in SQL notification loop", _tracePrefix);
 
-                    tcs.TrySetException(ex);
-                    return;
+                    await Task.Delay(1000, cancellationToken);
+                    continue;
                 }
             }
 
-            // NOTE: This is called from a BG thread so any uncaught exceptions will crash the process
-            lock (this)
-            {
-                if (_disposed)
-                {
-                    return;
-                }
-
-                var parameter = SqlClientFactory.Instance.CreateParameter();
-                parameter.ParameterName = "PayloadId";
-                parameter.Value = _lastPayloadId.GetValueOrDefault();
-
-                _dbOperation = new ObservableDbOperation(_options.ConnectionString, _selectSql, _logger, parameter)
-                {
-                    TracePrefix = _tracePrefix
-                };
-            }
-
-            _dbOperation.Queried += () => Queried();
-            _dbOperation.Faulted += ex => Faulted(ex);
-            _dbOperation.Changed += () =>
-            {
-                _logger.LogInformation("{0}Starting receive loop again to process updates", _tracePrefix);
-
-                _dbOperation.ExecuteReaderWithUpdates(ProcessRecord);
-            };
-
-            _logger.LogTrace("{0}Executing receive reader, initial payload ID parameter={1}", _tracePrefix, _dbOperation.Parameters[0].Value);
-
-            _dbOperation.ExecuteReaderWithUpdates(ProcessRecord);
-
-            _logger.LogInformation("{0}SqlReceiver.Receive returned", _tracePrefix);
+            _logger.LogDebug("{0}SQL notification loop fell out", _tracePrefix);
+            await StartLoop();
         }
 
-        private void ProcessRecord(IDataRecord record, DbOperation dbOperation)
+        /// <summary>
+        /// Loop until cancelled, using periodic queries to watch for new rows.
+        /// </summary>
+        private async Task PollingLoop(CancellationToken cancellationToken)
+        {
+            var delays = _updateLoopRetryDelays;
+            for (var retrySetIndex = 0; retrySetIndex < delays.Length; retrySetIndex++)
+            {
+                Tuple<int, int> retry = delays[retrySetIndex];
+                var retryDelay = retry.Item1;
+                var numRetries = retry.Item2;
+
+                for (var retryIndex = 0; retryIndex < numRetries; retryIndex++)
+                {
+                    if (cancellationToken.IsCancellationRequested) return;
+
+                    if (retryDelay > 0)
+                    {
+                        _logger.LogTrace("{0}Waiting {1}ms before checking for messages again", _tracePrefix, retryDelay);
+
+                        await Task.Delay(retryDelay, cancellationToken);
+                    }
+
+                    var recordCount = 0;
+                    try
+                    {
+                        recordCount = await ReadRows(null);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "{0}Error in SQL polling loop", _tracePrefix);
+                    }
+
+                    if (recordCount > 0)
+                    {
+                        _logger.LogDebug("{0}{1} records received", _tracePrefix, recordCount);
+
+                        // We got records so start the retry loop again
+                        // at the lowest delay.
+                        retrySetIndex = -1;
+                        break;
+                    }
+
+                    _logger.LogTrace("{0}No records received", _tracePrefix);
+
+                    var isLastRetry = retrySetIndex == delays.Length - 1 && retryIndex == numRetries - 1;
+
+                    if (isLastRetry)
+                    {
+                        // Last retry loop so just stay looping on the last retry delay
+                        retryIndex--;
+                    }
+                }
+            }
+
+            _logger.LogDebug("{0}SQL polling loop fell out", _tracePrefix);
+            await StartLoop();
+        }
+
+        /// <summary>
+        /// Fetch the starting payloadID that will be used to query for newer messages.
+        /// </summary>
+        private async Task<long> GetLastPayloadId()
+        {
+            try
+            {
+                using var connection = new SqlConnection(_options.ConnectionString);
+                using var command = new SqlCommand
+                {
+                    Connection = connection,
+                    CommandText = _maxIdSql,
+                };
+                await connection.OpenAsync();
+
+                var id = await command.ExecuteScalarAsync();
+                if (id is null) throw new Exception($"Unable to retrieve the starting payload ID for {_tableName}");
+                return (long)id;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{0}SqlReceiver error starting", _tracePrefix);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Execute a query against the database to look for rows newer than <see cref="_lastPayloadId"/>
+        /// </summary>
+        /// <param name="beforeExecute"></param>
+        /// <returns></returns>
+        private async Task<int> ReadRows(Action<SqlCommand>? beforeExecute)
+        {
+            using var connection = new SqlConnection(_options.ConnectionString);
+            using var command = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = _selectSql,
+            };
+            command.Parameters.Add(new SqlParameter("PayloadId", _lastPayloadId));
+            await connection.OpenAsync();
+
+            beforeExecute?.Invoke(command);
+
+            // Fetch any rows that might already be available after the last PayloadId.
+            var reader = await command.ExecuteReaderAsync();
+            var recordCount = 0;
+
+            while (reader.Read())
+            {
+                recordCount++;
+                await ProcessRecord(reader);
+            }
+
+            return recordCount;
+        }
+
+        /// <summary>
+        /// Process a message row received from the database.
+        /// </summary>
+        /// <param name="record"></param>
+        private async Task ProcessRecord(IDataRecord record)
         {
             var id = record.GetInt64(0);
             var payload = ((SqlDataReader)record).GetSqlBinary(1);
@@ -155,14 +301,65 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 
             _lastPayloadId = id;
 
-            // Update the Parameter with the new payload ID
-            dbOperation.Parameters[0].Value = _lastPayloadId;
-
-            _logger.LogTrace("{0}Updated receive reader initial payload ID parameter={1}", _tracePrefix, _dbOperation?.Parameters[0].Value);
+            _logger.LogTrace("{0}Updated receive reader initial payload ID parameter={1}", _tracePrefix, _lastPayloadId);
 
             _logger.LogTrace("{0}Payload {1} received", _tracePrefix, id);
 
-            Received((ulong)id, (byte[]?)payload ?? Array.Empty<byte>());
+            await _onReceived!.Invoke(id, (byte[]?)payload ?? Array.Empty<byte>());
+        }
+
+        /// <summary>
+        /// Attempt to start SQL Dependency listening for notification-based polling,
+        /// returning a boolean indicating success. If false, SQL notifications cannot be used.
+        /// </summary>
+        /// <returns></returns>
+        private bool StartSqlDependencyListener()
+        {
+            if (_notificationsDisabled)
+            {
+                return false;
+            }
+
+            _logger.LogTrace("{0}Starting SQL notification listener", _tracePrefix);
+            try
+            {
+                if (SqlDependency.Start(_options.ConnectionString))
+                {
+                    _logger.LogTrace("{0}SQL notification listener started", _tracePrefix);
+                }
+                else
+                {
+                    _logger.LogTrace("{0}SQL notification listener was already running", _tracePrefix);
+                }
+                return true;
+            }
+            catch (InvalidOperationException)
+            {
+                _logger.LogWarning("{0}SQL Service Broker is disabled. Falling back on periodic polling.", _tracePrefix);
+                _notificationsDisabled = true;
+                return false;
+            }
+            catch (NullReferenceException)
+            {
+                // Workaround for https://github.com/dotnet/SqlClient/issues/1264
+
+                _logger.LogWarning("{0}SQL Service Broker is disabled. Falling back on periodic polling.", _tracePrefix);
+                _notificationsDisabled = true;
+                return false;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "{0}Error starting SQL notification listener", _tracePrefix);
+
+                return false;
+            }
+        }
+
+        public void Dispose()
+        {
+            _disposed = true;
+            _cts.Cancel();
+            _cts.Dispose();
         }
     }
 }

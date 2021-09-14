@@ -14,11 +14,11 @@ namespace DemoServer
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        private string groupId = Guid.Empty.ToString();
+        private readonly string groupId = Guid.Empty.ToString();
 
         public async Task SendMessage(string name, string message)
         {
-            _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
+          //  _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
             await Clients.Group(groupId).SendAsync("BroadcastMessage", name, message);
         }
 
@@ -38,6 +38,7 @@ namespace DemoServer
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, Guid.Empty.ToString());
         }
     }
+
     public class ChatHubB : Hub
     {
         private readonly ILogger<ChatHubB> _logger;
@@ -47,11 +48,11 @@ namespace DemoServer
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
-        private string groupId = Guid.Empty.ToString();
+        private readonly string groupId = Guid.Empty.ToString();
 
         public async Task SendMessage(string name, string message)
         {
-            _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
+          //  _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
             await Clients.Group(groupId).SendAsync("BroadcastMessage", name, message);
         }
 

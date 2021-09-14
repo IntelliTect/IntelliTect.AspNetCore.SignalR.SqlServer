@@ -7,13 +7,13 @@ using System.Threading.Tasks;
 
 namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages
 {
-    internal readonly struct AckMessage
+    internal readonly struct SqlServerAckMessage
     {
         public int Id { get; }
 
         public string ServerName { get; }
 
-        public AckMessage(int id, string serverName)
+        public SqlServerAckMessage(int id, string serverName)
         {
             Id = id;
             ServerName = serverName;

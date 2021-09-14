@@ -17,7 +17,6 @@ namespace Microsoft.AspNet.SignalR.SqlServer
 {
     internal class SqlSender
     {
-        private readonly string _connectionString;
         private readonly string _insertDml;
         private readonly ILogger _logger;
         private readonly SqlServerOptions _options;
@@ -25,7 +24,6 @@ namespace Microsoft.AspNet.SignalR.SqlServer
         public SqlSender(SqlServerOptions options, ILogger logger, string tableName)
         {
             _options = options;
-            _connectionString = options.ConnectionString;
             _insertDml = BuildInsertString(tableName);
             _logger = logger;
         }
@@ -38,16 +36,18 @@ namespace Microsoft.AspNet.SignalR.SqlServer
                             .Replace("[Messages_0", String.Format(CultureInfo.InvariantCulture, "[{0}", tableName));
         }
 
-        public Task Send(byte[] message)
+        public async Task Send(byte[] message)
         {
-            var parameter = SqlClientFactory.Instance.CreateParameter();
-            parameter.ParameterName = "Payload";
-            parameter.DbType = DbType.Binary;
-            parameter.Value = message;
+            using var connection = new SqlConnection(_options.ConnectionString);
+            using var command = new SqlCommand
+            {
+                Connection = connection,
+                CommandText = _insertDml,
+            };
+            command.Parameters.Add(new SqlParameter("Payload", message));
+            await connection.OpenAsync();
 
-            var operation = new DbOperation(_connectionString, _insertDml, _logger, parameter);
-
-            return operation.ExecuteNonQueryAsync();
+            await command.ExecuteNonQueryAsync();
         }
     }
 }

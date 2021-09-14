@@ -183,14 +183,14 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             }
         }
 
-        public AckMessage ReadAck(ReadOnlyMemory<byte> data)
+        public SqlServerAckMessage ReadAck(ReadOnlyMemory<byte> data)
         {
             var reader = new MessagePackReader(data);
 
             // See WriteAck for format
             reader.ReadByte(); // Skip header
             ValidateArraySize(ref reader, 2, "Ack");
-            return new AckMessage(reader.ReadInt32(), reader.ReadString());
+            return new SqlServerAckMessage(reader.ReadInt32(), reader.ReadString());
         }
 
 
