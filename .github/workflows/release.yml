@@ -11,7 +11,7 @@ jobs:
       with:
         fetch-depth: 0
     - name: Set VERSION
-      run: echo "VERSION=${GITHUB_REF/refs\/tags\/v/}" >> $GITHUB_ENV
+      run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
     - name: Build
       run: dotnet build --configuration Release /p:Version=${VERSION}
     #- name: Test
