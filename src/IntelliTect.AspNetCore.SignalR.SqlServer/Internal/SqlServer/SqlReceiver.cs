@@ -134,10 +134,10 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                             // Read rows immediately, since on the next loop we know for certain there will be rows.
                             // There's no point doing a full loop that includes setting up a SqlDependency that
                             // will go unused due to the fact that we pulled back rows.
-                            while (recordCount > 0)
+                            do
                             {
                                 recordCount = await ReadRows(null);
-                            }
+                            } while (recordCount > 0);
                             continue;
 
                         case SqlNotificationType.Change when depResult.Source is SqlNotificationSource.Timeout:
