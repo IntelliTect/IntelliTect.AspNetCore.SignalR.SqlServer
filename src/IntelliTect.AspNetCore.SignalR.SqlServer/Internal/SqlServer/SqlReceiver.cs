@@ -107,6 +107,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
                     if (recordCount > 0)
                     {
+                        // If we got one message, there might be more coming right after.
+                        // Keep consuming as fast as we can until we stop getting more messages.
+                        while (recordCount > 0)
+                        {
+                            recordCount = await ReadRows(null);
+                        }
+
                         _logger.LogDebug("{0}Records were returned by the command that sets up the SQL notification, restarting the receive loop", _tracePrefix);
                         continue;
                     }
@@ -122,7 +129,16 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                         case SqlNotificationType.Change when depResult.Info is SqlNotificationInfo.Update:
                             // Typically means new records are available. (TODO: verify this?).
                             // Loop again to pick them up by performing another query.
-                            _logger.LogTrace("{0}SQL notification details: Type={1}, Source={2}, Info={3}", _tracePrefix, depResult.Type, depResult.Source, depResult.Info); continue;
+                            _logger.LogTrace("{0}SQL notification details: Type={1}, Source={2}, Info={3}", _tracePrefix, depResult.Type, depResult.Source, depResult.Info);
+
+                            // Read rows immediately, since on the next loop we know for certain there will be rows.
+                            // There's no point doing a full loop that includes setting up a SqlDependency that
+                            // will go unused due to the fact that we pulled back rows.
+                            while (recordCount > 0)
+                            {
+                                recordCount = await ReadRows(null);
+                            }
+                            continue;
 
                         case SqlNotificationType.Change when depResult.Source is SqlNotificationSource.Timeout:
                             // Expected while there is no activity. We put a timeout on our SqlDependency so they're not running infinitely.

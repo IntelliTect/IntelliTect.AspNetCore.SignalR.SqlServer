@@ -77,9 +77,17 @@ services.Configure<SqlServerOptions>(Configuration.GetSection("SignalR:SqlServer
 
 ## Caveats
 
-* As mentioned above, if SQL Server Service Broker is not available, messages will not always be transmitted immediately since a fallback of periodic querying must be used.
-* This is not the right solution for applications with a need for very high throughput, or very high degrees of scale-out. Consider Redis or Azure SignalR Service instead for such cases. You should always do an appropriate amount of testing to determine if a particular solution is suitable for your application.
-* While this uses the same table schema as the classic ASP.NET SignalR SQL Server backplane, the message payloads are completely different. If you are migrating, consider configuring a different `SchemaName` to prevent conflicts.
+As mentioned above, if SQL Server Service Broker is not available, messages will not always be transmitted immediately since a fallback of periodic querying must be used.
+
+While this uses the same table schema as the classic ASP.NET SignalR SQL Server backplane, the message payloads are completely different. If you are migrating, consider configuring a different `SchemaName` to prevent conflicts.
+
+### Performance
+
+This is not the right solution for applications with a need for very high throughput, or very high degrees of scale-out. Consider Redis or Azure SignalR Service instead for such cases. You should always do an appropriate amount of testing to determine if a particular solution is suitable for your application. 
+
+The results of some ad-hoc performance testing yielded that you can expect about 1000 messages per second per table (setting `TableCount`). However, increasing table count does have diminishing returns; attempting to push 20,000 messages/sec with 20 tables had a throughput of only ~10,000 messages/sec. This was observed with a SQL Server instance and load generator running on the same machine, an i9 9900k with an SSD, with a message size of ~200 bytes. A Redis backplane on the same hardware sustained 20,000 messages per second without issue.
+
+Do note that a broadcast message is considered a single message. Any call to `SendAsync` within a hub is a single message.
 
 ## License
 
