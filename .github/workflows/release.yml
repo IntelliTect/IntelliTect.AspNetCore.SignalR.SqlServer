@@ -19,6 +19,6 @@ jobs:
     - name: Pack
       run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
     - name: Push
-      run: dotnet nuget push *.nupkg --api-key ${NUGET_KEY}
+      run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --api-key ${NUGET_KEY}
       env:
         NUGET_KEY: ${{ secrets.NUGET_KEY }}
