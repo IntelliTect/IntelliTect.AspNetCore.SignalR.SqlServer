@@ -76,3 +76,10 @@ services.Configure<SqlServerOptions>(Configuration.GetSection("SignalR:SqlServer
 
 * As mentioned above, if SQL Server Service Broker is not available, messages will not always be transmitted immediately since a fallback of periodic querying must be used.
 * This is not the right solution for applications with a need for very high throughput, or very high degrees of scale-out. Consider Redis or Azure SignalR Service instead for such cases. You should always do an appropriate amount of testing to determine if a particular solution is suitable for your application.
+* While this uses the same table schema as the classic ASP.NET SignalR SQL Server backplane, the message payloads are completely different. If you are migrating, consider configuring a different `SchemaName` to prevent conflicts.
+
+## License
+
+[Apache 2.0](./LICENSE.txt). 
+
+Credit to Microsoft for both Microsoft.AspNet.SignalR.SqlServer and Microsoft.AspNetCore.SignalR.StackExchangeRedis, upon which this project is based.
