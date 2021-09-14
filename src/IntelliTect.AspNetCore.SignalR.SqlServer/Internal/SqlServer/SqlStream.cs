@@ -10,7 +10,7 @@ using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
 using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.Extensions.Logging;
 
-namespace Microsoft.AspNet.SignalR.SqlServer
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal class SqlStream : IDisposable
     {

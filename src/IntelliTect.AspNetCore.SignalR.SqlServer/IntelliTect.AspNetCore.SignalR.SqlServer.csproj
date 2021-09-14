@@ -15,9 +15,5 @@
 	<ItemGroup>
 		<EmbeddedResource Include="**/*.sql" />
 	</ItemGroup>
-	
-	<ItemGroup>
-	  <None Remove="Internal\SqlServer\enable-broker.sql" />
-	</ItemGroup>
 
 </Project>

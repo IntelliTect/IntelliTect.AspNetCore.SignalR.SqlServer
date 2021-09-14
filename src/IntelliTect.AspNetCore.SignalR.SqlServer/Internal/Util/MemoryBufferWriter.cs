@@ -12,7 +12,7 @@ using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Microsoft.AspNetCore.Internal
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal sealed class MemoryBufferWriter : Stream, IBufferWriter<byte>
     {

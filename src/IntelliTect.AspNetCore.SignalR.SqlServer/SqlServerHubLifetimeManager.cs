@@ -10,7 +10,6 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
-using Microsoft.AspNet.SignalR.SqlServer;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using IntelliTect.AspNetCore.SignalR.SqlServer.Internal;
 using Microsoft.Extensions.Logging;

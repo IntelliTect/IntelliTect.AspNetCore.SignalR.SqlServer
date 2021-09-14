@@ -5,7 +5,7 @@ using System;
 using System.IO;
 using System.Reflection;
 
-namespace Microsoft.AspNet.SignalR
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal static class AssemblyExtensions
     {
