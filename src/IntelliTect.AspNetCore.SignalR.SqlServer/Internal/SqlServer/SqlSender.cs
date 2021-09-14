@@ -3,13 +3,8 @@
 
 using System;
 using System.Collections.Generic;
-using System.Data;
-using System.Data.SqlClient;
-using System.Data.SqlTypes;
-using System.Diagnostics;
 using System.Globalization;
 using System.Threading.Tasks;
-using IntelliTect.AspNetCore.SignalR.SqlServer;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Logging;
 

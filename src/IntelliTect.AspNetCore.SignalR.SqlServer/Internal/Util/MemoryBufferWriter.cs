@@ -137,7 +137,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         public override Task CopyToAsync(Stream destination, int bufferSize, CancellationToken cancellationToken)
         {
-            if (_completedSegments == null && _currentSegment is not null)
+            if (_completedSegments == null && _currentSegment != null)
             {
                 // There is only one segment so write without awaiting.
                 return destination.WriteAsync(_currentSegment, 0, _position, cancellationToken);

@@ -40,7 +40,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         {
             if (_acks.TryRemove(id, out var ack))
             {
-                ack.Tcs.TrySetResult();
+                ack.Tcs.TrySetResult(true);
             }
         }
 
@@ -86,13 +86,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         private class AckInfo
         {
-            public TaskCompletionSource Tcs { get; private set; }
+            public TaskCompletionSource<bool> Tcs { get; private set; }
             public DateTime Created { get; private set; }
 
             public AckInfo()
             {
                 Created = DateTime.UtcNow;
-                Tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                Tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             }
         }
     }

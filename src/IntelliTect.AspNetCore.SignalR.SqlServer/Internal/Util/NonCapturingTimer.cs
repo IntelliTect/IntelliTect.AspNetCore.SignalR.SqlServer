@@ -5,7 +5,7 @@
 using System;
 using System.Threading;
 
-namespace Microsoft.Extensions.Internal
+namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     // A convenience API for interacting with System.Threading.Timer in a way
     // that doesn't capture the ExecutionContext. We should be using this (or equivalent)

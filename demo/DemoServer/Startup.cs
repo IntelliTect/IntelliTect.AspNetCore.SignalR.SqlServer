@@ -30,8 +30,9 @@ namespace DemoServer
                 {
                     o.ConnectionString = Configuration.GetConnectionString("Default");
                     o.AutoEnableServiceBroker = true;
-                    o.TableCount = 50;
-                    //o.SchemaName = "Signalrcore";
+                    o.TableSlugGenerator = hubType => hubType.Name;
+                    o.TableCount = 1;
+                    o.SchemaName = "SignalRCore";
                 });
         }
 
