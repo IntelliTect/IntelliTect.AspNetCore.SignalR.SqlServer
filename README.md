@@ -2,6 +2,9 @@
 
 A Microsoft SQL Server backplane for ASP.NET Core SignalR.
 
+![Nuget](https://img.shields.io/nuget/v/IntelliTect.AspNetCore.SignalR.SqlServer)
+
+
 This project is largely based off of a fork of the [SignalR Core Redis provider](https://github.com/dotnet/aspnetcore/tree/main/src/SignalR/server/StackExchangeRedis), reworked to use the underlying concepts of the [classic ASP.NET SignalR SQL Server backplane](https://github.com/SignalR/SignalR/tree/main/src/Microsoft.AspNet.SignalR.SqlServer). This means it supports subscription-based messaging via SQL Server Service Broker, falling back on periodic polling when not available.
 
 
