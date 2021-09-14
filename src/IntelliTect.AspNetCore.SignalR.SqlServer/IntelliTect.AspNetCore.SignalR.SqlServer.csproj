@@ -5,6 +5,14 @@
 		<LangVersion>9.0</LangVersion>
 		<Nullable>enable</Nullable>
 
+		<RepositoryUrl>https://github.com/IntelliTect/IntelliTect.AspNetCore.SignalR.SqlServer</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<Authors>IntelliTect-Nuget</Authors>
+		<Company>IntelliTect</Company>
+		<Description>A Microsoft SQL Server backplane for ASP.NET Core SignalR.</Description>
+		<PackageTags>IntelliTect aspnetcore sqlserver signalr</PackageTags>
+
+		
 		<!-- Sourcelink: -->
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
