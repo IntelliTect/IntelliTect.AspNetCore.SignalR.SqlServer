@@ -363,6 +363,16 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 _notificationsDisabled = true;
                 return false;
             }
+            catch (SqlException ex) when (ex.Number == 40510 || ex.Message.Contains("not supported"))
+            {
+                // Workaround for https://github.com/dotnet/SqlClient/issues/1264.
+                // Specifically that Azure SQL Database reports that service broker is enabled,
+                // even though it is entirely unsupported.
+
+                _logger.LogInformation("{0}SQL Service Broker is unsupported by the target database. Falling back on periodic polling.", _tracePrefix);
+                _notificationsDisabled = true;
+                return false;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "{0}Error starting SQL notification listener", _tracePrefix);
