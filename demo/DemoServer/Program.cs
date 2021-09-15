@@ -29,10 +29,10 @@ namespace DemoServer
                     )
                     .ConfigureLogging(builder =>
                     {
-                        builder.AddSystemdConsole(options =>
+                        builder.AddSimpleConsole(options =>
                         {
-                            options.IncludeScopes = true;
                             options.TimestampFormat = "hh:mm:ss ";
+                            options.SingleLine = true;
                         });
                     });
                 });

@@ -369,7 +369,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 // Specifically that Azure SQL Database reports that service broker is enabled,
                 // even though it is entirely unsupported.
 
-                _logger.LogInformation("{0}SQL Service Broker is unsupported by the target database. Falling back on periodic polling.", _tracePrefix);
+                _logger.LogWarning("{0}SQL Service Broker is unsupported by the target database. Falling back on periodic polling.", _tracePrefix);
                 _notificationsDisabled = true;
                 return false;
             }
