@@ -41,7 +41,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             return (MessageType)reader.ReadByte();
         }
 
-        public byte[] WriteInvocationAll(string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        public byte[] WriteInvocationAll(string methodName, object?[]? args, IReadOnlyList<string>? excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids
@@ -65,7 +65,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             }
         }
 
-        public byte[] WriteTargetedInvocation(MessageType type, string target, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        public byte[] WriteTargetedInvocation(MessageType type, string target, string methodName, object?[]? args, IReadOnlyList<string>? excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids
@@ -90,7 +90,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             }
         }
 
-        private void WriteInvocationCore(ref MessagePackWriter writer, string methodName, object?[] args, IReadOnlyList<string>? excludedConnectionIds)
+        private void WriteInvocationCore(ref MessagePackWriter writer, string methodName, object?[]? args, IReadOnlyList<string>? excludedConnectionIds)
         {
             // Written as a MessagePack 'arr' containing at least these items:
             // * A MessagePack 'arr' of 'str's representing the excluded ids

@@ -136,21 +136,21 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendAllAsync(string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendAllAsync(string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             var message = _protocol.WriteInvocationAll(methodName, args, null);
             return PublishAsync(MessageType.InvocationAll, message);
         }
 
         /// <inheritdoc />
-        public override Task SendAllExceptAsync(string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
+        public override Task SendAllExceptAsync(string methodName, object?[]? args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
         {
             var message = _protocol.WriteInvocationAll(methodName, args, excludedConnectionIds);
             return PublishAsync(MessageType.InvocationAll, message);
         }
 
         /// <inheritdoc />
-        public override Task SendConnectionAsync(string connectionId, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendConnectionAsync(string connectionId, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             if (connectionId == null)
             {
@@ -170,7 +170,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendGroupAsync(string groupName, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendGroupAsync(string groupName, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             if (groupName == null)
             {
@@ -182,7 +182,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendGroupExceptAsync(string groupName, string methodName, object?[] args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
+        public override Task SendGroupExceptAsync(string groupName, string methodName, object?[]? args, IReadOnlyList<string> excludedConnectionIds, CancellationToken cancellationToken = default)
         {
             if (groupName == null)
             {
@@ -194,7 +194,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendUserAsync(string userId, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendUserAsync(string userId, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             var message = _protocol.WriteTargetedInvocation(MessageType.InvocationUser, userId, methodName, args, null);
             return PublishAsync(MessageType.InvocationUser, message);
@@ -247,7 +247,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendConnectionsAsync(IReadOnlyList<string> connectionIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendConnectionsAsync(IReadOnlyList<string> connectionIds, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             if (connectionIds == null)
             {
@@ -264,7 +264,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendGroupsAsync(IReadOnlyList<string> groupNames, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendGroupsAsync(IReadOnlyList<string> groupNames, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             if (groupNames == null)
             {
@@ -284,7 +284,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[] args, CancellationToken cancellationToken = default)
+        public override Task SendUsersAsync(IReadOnlyList<string> userIds, string methodName, object?[]? args, CancellationToken cancellationToken = default)
         {
             if (userIds.Count == 0)
             {
