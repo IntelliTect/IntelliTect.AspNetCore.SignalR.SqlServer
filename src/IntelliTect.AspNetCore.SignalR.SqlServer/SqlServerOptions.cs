@@ -46,6 +46,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         /// </summary>
         public bool AutoEnableServiceBroker { get; set; } = false;
 
+        /// <summary>
+        /// Flag enum that specifies the allowed modes for retrieving messages from SQL Server. Default Auto.
+        /// </summary>
         public SqlServerMessageMode Mode { get; set; } = SqlServerMessageMode.Auto;
     }
 }

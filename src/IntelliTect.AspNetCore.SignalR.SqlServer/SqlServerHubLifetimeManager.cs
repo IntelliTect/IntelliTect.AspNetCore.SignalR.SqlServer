@@ -362,6 +362,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             await ack;
         }
 
+        /// <inheritdoc/>
         public void Dispose()
         {
             _disposed = true;
