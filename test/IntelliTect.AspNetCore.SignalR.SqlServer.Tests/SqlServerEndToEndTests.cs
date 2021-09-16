@@ -16,7 +16,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
     {
         private const string databaseName = "SignalRUnitTestsDb";
         private const string connectionString = 
-            "Server=localhost;Database=" + databaseName + ";Trusted_Connection=True;";
+            "Server=localhost;Database=" + databaseName + ";Trusted_Connection=True;Timeout=5";
 
         [SkippableFact]
         public async Task CanSendAndReceivePayloads_WithServiceBroker()
@@ -99,7 +99,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
                 || ex.Message.Contains("The server was not found or was not accessible")
             )
             {
-                Skip.If(true, "SQL Server not available on localhost");
+                Skip.If(true, ex.Message);
             }
         }
     }
