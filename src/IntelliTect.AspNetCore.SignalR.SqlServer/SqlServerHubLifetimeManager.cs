@@ -403,9 +403,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
 
                             _streams.Add(stream);
 
-                            StartReceiving(streamIndex);
+                            StartReceiving();
 
-                            void StartReceiving(int streamIndex)
+                            void StartReceiving()
                             {
                                 stream.StartReceiving((id, message) => OnReceived(message))
                                     .ContinueWith(async t =>
@@ -416,7 +416,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
 
                                         // Try again in a little bit
                                         await Task.Delay(2000);
-                                        StartReceiving(streamIndex);
+                                        StartReceiving();
                                     }, TaskContinuationOptions.OnlyOnFaulted);
                             }
 

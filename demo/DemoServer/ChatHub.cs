@@ -5,6 +5,14 @@ using Microsoft.Extensions.Logging;
 
 namespace DemoServer
 {
+    public class UserIdProvider : IUserIdProvider
+    {
+        public virtual string GetUserId(HubConnectionContext connection)
+        {
+            return "staticUserid";
+        }
+    }
+
     public class ChatHubA : Hub
     {
         private readonly ILogger<ChatHubA> _logger;
@@ -53,7 +61,11 @@ namespace DemoServer
         public async Task SendMessage(string name, string message)
         {
           //  _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
-            await Clients.Group(groupId).SendAsync("BroadcastMessage", name, message);
+            await Clients.Group(groupId).SendAsync("BroadcastMessage", name, "group");
+            await Clients.Caller.SendAsync("BroadcastMessage", name, "caller");
+            await Clients.User(Context.UserIdentifier).SendAsync("BroadcastMessage", name, "user");
+            await Clients.All.SendAsync("BroadcastMessage", name, "all");
+            await Clients.AllExcept(Context.ConnectionId).SendAsync("BroadcastMessage", name, "allExcept");
         }
 
         public override async Task OnConnectedAsync()

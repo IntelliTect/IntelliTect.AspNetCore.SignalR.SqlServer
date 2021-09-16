@@ -49,7 +49,71 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
             await RunCore(options, prefix);
         }
 
-        private static async Task RunCore(SqlServerOptions options, string prefix)
+
+        [SkippableFact]
+        public async Task CanSendAndReceivePayloads_WithServiceBroker_UnderHeavyLoad()
+        {
+            await CreateDatabaseAsync();
+
+            var options = new SqlServerOptions
+            {
+                ConnectionString = connectionString,
+                AutoEnableServiceBroker = true,
+                Mode = SqlServerMessageMode.ServiceBroker
+            };
+
+            var prefix = nameof(CanSendAndReceivePayloads_WithServiceBroker_UnderHeavyLoad);
+            var installer = new SqlInstaller(options, NullLogger.Instance, prefix);
+            var receiver = new SqlReceiver(options, NullLogger.Instance, prefix + "_0", "");
+
+            var receivedMessages = new ConcurrentBag<byte[]>();
+            await installer.Install();
+            var receiverTask = receiver.Start((_, message) =>
+            {
+                receivedMessages.Add(message);
+                return Task.CompletedTask;
+            });
+            // Give the receiver time to reach a steady state (waiting).
+            await Task.Delay(150);
+
+            var cts = new CancellationTokenSource();
+
+            // This is roughly analagous to number of connections, not number of servers.
+            // The reasoning is that each connected client to the hub could be triggering
+            // the hub to be sending messages.
+            int numSenders = 100;
+            int numSent = 0;
+            var sender = new SqlSender(options, NullLogger.Instance, prefix + "_0");
+            for (int i = 0; i < numSenders; i++)
+            {
+                _ = Task.Run(async () =>
+                  {
+                      var random = new Random();
+                      while (!cts.IsCancellationRequested)
+                      {
+                          var payload = new byte[255];
+                          random.NextBytes(payload);
+                          await sender.Send(payload);
+                          Interlocked.Increment(ref numSent);
+                      }
+                  }, cts.Token);
+            }
+
+            var payload = new byte[255];
+            new Random().NextBytes(payload);
+            await Task.Delay(10000);
+            cts.Cancel();
+
+            // Give the receiver time to reach a steady state (waiting).
+            await Task.Delay(1000);
+
+            Assert.Equal(numSent, receivedMessages.Count);
+
+            receiver.Dispose();
+            await receiverTask;
+        }
+
+        private async Task RunCore(SqlServerOptions options, string prefix)
         {
             var installer = new SqlInstaller(options, NullLogger.Instance, prefix);
             var sender = new SqlSender(options, NullLogger.Instance, prefix + "_0");
