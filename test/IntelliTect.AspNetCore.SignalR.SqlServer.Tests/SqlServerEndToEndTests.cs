@@ -16,7 +16,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
     {
         private const string databaseName = "SignalRUnitTestsDb";
         private const string connectionString = 
-            "Server=lsocalhost;Database=" + databaseName + ";Trusted_Connection=True;";
+            "Server=localhost;Database=" + databaseName + ";Trusted_Connection=True;";
 
         [SkippableFact]
         public async Task CanSendAndReceivePayloads_WithServiceBroker()
@@ -93,7 +93,11 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
                     BEGIN CREATE DATABASE {databaseName}; END";
                 await command.ExecuteNonQueryAsync();
             }
-            catch (SqlException ex) when (ex.Number == 53 || ex.Message.Contains("Could not open a connection to SQL Server"))
+            catch (SqlException ex) when (
+                ex.Number == 53 
+                || ex.Message.Contains("Could not open a connection to SQL Server")
+                || ex.Message.Contains("The server was not found or was not accessible")
+            )
             {
                 Skip.If(true, "SQL Server not available on localhost");
             }
