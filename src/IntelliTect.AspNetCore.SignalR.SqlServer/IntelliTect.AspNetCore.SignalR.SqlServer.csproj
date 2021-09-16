@@ -10,6 +10,7 @@
 		<RepositoryType>git</RepositoryType>
 		<Authors>IntelliTect-Nuget</Authors>
 		<Company>IntelliTect</Company>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<Description>A Microsoft SQL Server backplane for ASP.NET Core SignalR.</Description>
 		<PackageTags>IntelliTect aspnetcore sqlserver signalr</PackageTags>
 
