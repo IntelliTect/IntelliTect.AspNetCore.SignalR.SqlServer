@@ -15,6 +15,9 @@ using IntelliTect.AspNetCore.SignalR.SqlServer.Internal;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.SignalR;
+using System.Runtime.CompilerServices;
+
+[assembly: InternalsVisibleTo("IntelliTect.AspNetCore.SignalR.SqlServer.Tests")]
 
 namespace IntelliTect.AspNetCore.SignalR.SqlServer
 {
@@ -408,6 +411,8 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                                     {
                                         if (_disposed) return;
 
+                                        _logger.LogError(t.Exception, "{0}The SQL Server SignalR message receiver encountered an error.", tracePrefix);
+
                                         // Try again in a little bit
                                         await Task.Delay(2000);
                                         StartReceiving(streamIndex);
@@ -437,7 +442,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             {
                 case MessageType.InvocationAll:
 
-                    invocation = _protocol.ReadInvocation(message);
+                    invocation = _protocol.ReadInvocationAll(message);
                     connections = _connections;
                     goto multiInvocation;
 

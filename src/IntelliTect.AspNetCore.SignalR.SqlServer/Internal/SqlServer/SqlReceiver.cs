@@ -64,7 +64,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
             _onReceived = onReceived;
 
-            return Task.Factory.StartNew(StartLoop, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach);
+            return Task.Factory
+                .StartNew(StartLoop, TaskCreationOptions.LongRunning | TaskCreationOptions.DenyChildAttach)
+                .Unwrap();
         }
 
         private async Task StartLoop()
@@ -78,11 +80,18 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
             if (_cts.IsCancellationRequested) return;
 
-            Func<CancellationToken, Task> loop = StartSqlDependencyListener()
-                ? NotificationLoop
-                : PollingLoop;
-
-            await loop(_cts.Token);
+            if (_options.Mode.HasFlag(SqlServerMessageMode.ServiceBroker) && StartSqlDependencyListener())
+            {
+                await NotificationLoop(_cts.Token);
+            }
+            else if (_options.Mode.HasFlag(SqlServerMessageMode.Polling))
+            {
+                await PollingLoop(_cts.Token);
+            }
+            else
+            {
+                throw new InvalidOperationException("None of the configured SqlServerMessageMode are suitable for use.");
+            }
         }
 
         /// <summary>
@@ -90,7 +99,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         /// </summary>
         private async Task NotificationLoop(CancellationToken cancellationToken)
         {
-            while (StartSqlDependencyListener())
+            while (!_notificationsDisabled)
             {
                 if (cancellationToken.IsCancellationRequested) return;
 
@@ -99,6 +108,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                     _logger.LogDebug("{0}Setting up SQL notification", _tracePrefix);
 
                     var tcs = new TaskCompletionSource<SqlNotificationEventArgs>();
+                    var cancelReg = cancellationToken.Register((t) => ((TaskCompletionSource<SqlNotificationEventArgs>)t!).TrySetCanceled(), tcs);
                     var recordCount = await ReadRows(command =>
                     {
                         var dependency = new SqlDependency(command, null, (int)_dependencyTimeout.TotalSeconds);
@@ -121,6 +131,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                     _logger.LogTrace("{0}No records received while setting up SQL notification", _tracePrefix);
 
                     var depResult = await tcs.Task;
+                    cancelReg.Dispose();
                     if (cancellationToken.IsCancellationRequested) return;
 
                     // Check notification args for issues
@@ -166,6 +177,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                             break;
                     }
                 }
+                catch (TaskCanceledException) { return; }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "{0}Error in SQL notification loop", _tracePrefix);
@@ -195,18 +207,19 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 {
                     if (cancellationToken.IsCancellationRequested) return;
 
-                    if (retryDelay > 0)
-                    {
-                        _logger.LogTrace("{0}Waiting {1}ms before checking for messages again", _tracePrefix, retryDelay);
-
-                        await Task.Delay(retryDelay, cancellationToken);
-                    }
-
                     var recordCount = 0;
                     try
                     {
+                        if (retryDelay > 0)
+                        {
+                            _logger.LogTrace("{0}Waiting {1}ms before checking for messages again", _tracePrefix, retryDelay);
+
+                            await Task.Delay(retryDelay, cancellationToken);
+                        }
+
                         recordCount = await ReadRows(null);
                     }
+                    catch (TaskCanceledException) { return; }
                     catch (Exception ex)
                     {
                         _logger.LogError(ex, "{0}Error in SQL polling loop", _tracePrefix);

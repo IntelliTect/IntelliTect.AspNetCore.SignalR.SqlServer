@@ -45,5 +45,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         /// "ALTER DATABASE [DatabaseName] SET ENABLE_BROKER". It requires an exclusive lock on the database.
         /// </summary>
         public bool AutoEnableServiceBroker { get; set; } = false;
+
+        public SqlServerMessageMode Mode { get; set; } = SqlServerMessageMode.Auto;
     }
 }

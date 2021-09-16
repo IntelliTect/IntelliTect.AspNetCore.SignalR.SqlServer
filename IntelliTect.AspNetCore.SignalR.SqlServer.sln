@@ -7,9 +7,13 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "demo", "demo", "{62241700-2
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "src", "src", "{21874FF3-BE97-4F3B-AD63-EC347FF757FF}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliTect.AspNetCore.SignalR.SqlServer", "src\IntelliTect.AspNetCore.SignalR.SqlServer\IntelliTect.AspNetCore.SignalR.SqlServer.csproj", "{62E576F6-E0F9-43AC-848E-97E7E93E4EF0}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "IntelliTect.AspNetCore.SignalR.SqlServer", "src\IntelliTect.AspNetCore.SignalR.SqlServer\IntelliTect.AspNetCore.SignalR.SqlServer.csproj", "{62E576F6-E0F9-43AC-848E-97E7E93E4EF0}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DemoServer", "demo\DemoServer\DemoServer.csproj", "{FACCC87C-37E3-4095-9997-75EE3C54CD49}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "DemoServer", "demo\DemoServer\DemoServer.csproj", "{FACCC87C-37E3-4095-9997-75EE3C54CD49}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "test", "test", "{CA676E97-11D2-4D19-96DA-2B66392A05D5}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IntelliTect.AspNetCore.SignalR.SqlServer.Tests", "test\IntelliTect.AspNetCore.SignalR.SqlServer.Tests\IntelliTect.AspNetCore.SignalR.SqlServer.Tests.csproj", "{468B17AA-5509-481D-884E-145978311BBA}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -25,6 +29,10 @@ Global
 		{FACCC87C-37E3-4095-9997-75EE3C54CD49}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{FACCC87C-37E3-4095-9997-75EE3C54CD49}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{FACCC87C-37E3-4095-9997-75EE3C54CD49}.Release|Any CPU.Build.0 = Release|Any CPU
+		{468B17AA-5509-481D-884E-145978311BBA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{468B17AA-5509-481D-884E-145978311BBA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{468B17AA-5509-481D-884E-145978311BBA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{468B17AA-5509-481D-884E-145978311BBA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -32,6 +40,7 @@ Global
 	GlobalSection(NestedProjects) = preSolution
 		{62E576F6-E0F9-43AC-848E-97E7E93E4EF0} = {21874FF3-BE97-4F3B-AD63-EC347FF757FF}
 		{FACCC87C-37E3-4095-9997-75EE3C54CD49} = {62241700-24B6-4D13-A183-2502D628ED43}
+		{468B17AA-5509-481D-884E-145978311BBA} = {CA676E97-11D2-4D19-96DA-2B66392A05D5}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {41DEFC27-E139-4A35-989F-DA872E4B9F0A}

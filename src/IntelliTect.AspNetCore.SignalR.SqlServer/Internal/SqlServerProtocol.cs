@@ -113,7 +113,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             WriteHubMessage(ref writer, new InvocationMessage(methodName, args));
         }
 
-        public SqlServerInvocation ReadInvocation(ReadOnlyMemory<byte> data)
+        public SqlServerInvocation ReadInvocationAll(ReadOnlyMemory<byte> data)
         {
             // See WriteInvocation for the format
             var reader = new MessagePackReader(data);
@@ -230,10 +230,11 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         {
             var reader = new MessagePackReader(data);
 
+            reader.ReadByte(); // Skip header
+
             // See WriteGroupCommand for format.
             ValidateArraySize(ref reader, 5, "GroupCommand");
 
-            reader.ReadByte(); // Skip header
             var id = reader.ReadInt32();
             var serverName = reader.ReadString();
             var action = (GroupAction)reader.ReadByte();
