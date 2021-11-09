@@ -28,35 +28,43 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         public async Task Install()
         {
             _logger.LogInformation("Start installing SignalR SQL objects");
-
-            using var connection = new SqlConnection(_options.ConnectionString);
-            await connection.OpenAsync();
-            using var command = connection.CreateCommand();
-
-            if (_options.AutoEnableServiceBroker)
+            try
             {
-                try
+                using var connection = new SqlConnection(_options.ConnectionString);
+                await connection.OpenAsync();
+                using var command = connection.CreateCommand();
+
+                if (_options.AutoEnableServiceBroker)
                 {
-                    command.CommandText = GetType().Assembly.StringResource("enable-broker.sql");
-                    await command.ExecuteNonQueryAsync();
+                    try
+                    {
+                        command.CommandText = GetType().Assembly.StringResource("enable-broker.sql");
+                        await command.ExecuteNonQueryAsync();
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Unable to automatically enable SQL Server Service Broker.");
+                    }
                 }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Unable to automatically enable SQL Server Service Broker.");
-                }
+
+                var script = GetType().Assembly.StringResource("install.sql");
+
+                script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
+                script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
+                script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
+                script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
+
+                command.CommandText = script;
+                await command.ExecuteNonQueryAsync();
+
+                _logger.LogInformation("SignalR SQL objects installed");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Unable to install SignalR SQL objects");
+                throw;
             }
 
-            var script = GetType().Assembly.StringResource("install.sql");
-
-            script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
-            script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
-            script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
-            script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
-
-            command.CommandText = script;
-            await command.ExecuteNonQueryAsync();
-
-            _logger.LogInformation("SignalR SQL objects installed");
         }
     }
 }

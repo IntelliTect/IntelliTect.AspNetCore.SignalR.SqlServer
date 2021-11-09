@@ -44,7 +44,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         public void Dispose()
         {
-            _logger.LogInformation("{0}Disposing stream {1}", _tracePrefix, _streamIndex);
+            _logger.LogTrace("{0}Disposing stream {1}", _tracePrefix, _streamIndex);
 
             _receiver.Dispose();
         }

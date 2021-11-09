@@ -116,6 +116,8 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             var tasks = new List<Task>();
 
             var feature = connection.Features.Get<ISqlServerFeature>()!;
+            if (feature is null) return Task.CompletedTask;
+
             var groupNames = feature.Groups;
 
             if (groupNames != null)
@@ -165,7 +167,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             var connection = _connections[connectionId];
             if (connection != null)
             {
-                return connection.WriteAsync(new InvocationMessage(methodName, args), cancellationToken).AsTask();
+                return connection.WriteAsync(new InvocationMessage(methodName, args ?? Array.Empty<object[]>()), cancellationToken).AsTask();
             }
 
             var message = _protocol.WriteTargetedInvocation(MessageType.InvocationConnection, connectionId, methodName, args, null);
@@ -382,8 +384,6 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                 {
                     if (_streams.Count == 0)
                     {
-                        // NOTE: Called from a ThreadPool thread
-
                         var installer = new SqlInstaller(_options, _logger, _tableNamePrefix);
                         await installer.Install();
 

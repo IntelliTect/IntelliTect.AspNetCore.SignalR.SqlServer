@@ -32,7 +32,7 @@ namespace DemoServer
                         builder.AddSimpleConsole(options =>
                         {
                             options.TimestampFormat = "hh:mm:ss ";
-                            options.SingleLine = true;
+                            options.SingleLine = false;
                         });
                     });
                 });

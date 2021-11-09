@@ -110,7 +110,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 writer.WriteArrayHeader(0);
             }
 
-            WriteHubMessage(ref writer, new InvocationMessage(methodName, args));
+            WriteHubMessage(ref writer, new InvocationMessage(methodName, args ?? Array.Empty<object[]>()));
         }
 
         public SqlServerInvocation ReadInvocationAll(ReadOnlyMemory<byte> data)
