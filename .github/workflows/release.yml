@@ -26,3 +26,9 @@ jobs:
       run: dotnet nuget push *.nupkg --source https://api.nuget.org/v3/index.json --api-key ${NUGET_KEY}
       env:
         NUGET_KEY: ${{ secrets.NUGET_KEY }}
+    - name: Create GH Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          *.nupkg
+          *.snupkg
