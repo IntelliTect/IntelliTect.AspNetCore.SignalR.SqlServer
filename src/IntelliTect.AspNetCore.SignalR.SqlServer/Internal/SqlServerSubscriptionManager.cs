@@ -16,6 +16,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         public HubConnectionStore? Get(string id)
         {
+            if (id is null) return null;
             return _subscriptions.TryGetValue(id, out var ret) ? ret : null;
         }
 

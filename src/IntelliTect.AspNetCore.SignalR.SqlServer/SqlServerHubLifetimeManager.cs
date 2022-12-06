@@ -199,13 +199,6 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         }
 
         /// <inheritdoc />
-        public override Task SendUserAsync(string userId, string methodName, object?[]? args, CancellationToken cancellationToken = default)
-        {
-            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationUser, userId, methodName, args, null);
-            return PublishAsync(MessageType.InvocationUser, message);
-        }
-
-        /// <inheritdoc />
         public override Task AddToGroupAsync(string connectionId, string groupName, CancellationToken cancellationToken = default)
         {
             if (connectionId == null)
@@ -306,6 +299,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
             }
 
             return Task.WhenAll(publishTasks);
+        }
+
+        /// <inheritdoc />
+        public override Task SendUserAsync(string userId, string methodName, object?[]? args, CancellationToken cancellationToken = default)
+        {
+            var message = _protocol.WriteTargetedInvocation(MessageType.InvocationUser, userId, methodName, args, null);
+            return PublishAsync(MessageType.InvocationUser, message);
         }
 
         private async Task PublishAsync(MessageType type, byte[] payload)

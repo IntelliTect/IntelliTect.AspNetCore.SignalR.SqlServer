@@ -153,7 +153,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
                         case SqlNotificationType.Change when depResult.Source is SqlNotificationSource.Timeout:
                             // Expected while there is no activity. We put a timeout on our SqlDependency so they're not running infinitely.
-                            _logger.LogTrace("{0}SQL notification timed out", _tracePrefix);
+                            _logger.LogTrace("{0}SQL notification timed out (this is expected every {1} seconds)", _tracePrefix, _dependencyTimeout.TotalSeconds);
                             break;
 
                         case SqlNotificationType.Change:
