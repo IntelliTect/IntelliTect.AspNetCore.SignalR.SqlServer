@@ -37,6 +37,15 @@ namespace DemoServer
                     o.TableCount = 1;
                     o.SchemaName = "SignalRCore";
                 });
+
+            // Example of using DI to configure options:
+            services.AddOptions<SqlServerOptions>().Configure<IConfiguration>((o, config) =>
+            {
+                o.ConnectionString = config.GetConnectionString("Default");
+            });
+
+            // Register specific hubs with specific backplanes:
+            //services.AddSingleton<HubLifetimeManager<ChatHubB>, DefaultHubLifetimeManager<ChatHubB>>();
         }
 
         // This method gets called by the runtime. Use this method to configure the HTTP request pipeline.

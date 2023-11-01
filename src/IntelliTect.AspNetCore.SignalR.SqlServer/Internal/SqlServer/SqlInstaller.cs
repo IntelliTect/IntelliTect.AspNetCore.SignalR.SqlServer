@@ -27,6 +27,12 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         public async Task Install()
         {
+            if (!_options.AutoEnableServiceBroker && !_options.AutoInstallSchema)
+            {
+                _logger.LogInformation("Skipping install of SignalR SQL objects");
+                return;
+            }
+
             _logger.LogInformation("Start installing SignalR SQL objects");
             try
             {
@@ -47,17 +53,20 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                     }
                 }
 
-                var script = GetType().Assembly.StringResource("install.sql");
+                if (_options.AutoInstallSchema)
+                {
+                    var script = GetType().Assembly.StringResource("install.sql");
 
-                script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
-                script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
-                script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
-                script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
+                    script = script.Replace("SET @SCHEMA_NAME = 'SignalR';", "SET @SCHEMA_NAME = '" + _options.SchemaName + "';");
+                    script = script.Replace("SET @TARGET_SCHEMA_VERSION = 1;", "SET @TARGET_SCHEMA_VERSION = " + SchemaVersion + ";");
+                    script = script.Replace("SET @MESSAGE_TABLE_COUNT = 1;", "SET @MESSAGE_TABLE_COUNT = " + _options.TableCount + ";");
+                    script = script.Replace("SET @MESSAGE_TABLE_NAME = 'Messages_YourHubName';", "SET @MESSAGE_TABLE_NAME = '" + _messagesTableNamePrefix + "';");
 
-                command.CommandText = script;
-                await command.ExecuteNonQueryAsync();
+                    command.CommandText = script;
+                    await command.ExecuteNonQueryAsync();
 
-                _logger.LogInformation("SignalR SQL objects installed");
+                    _logger.LogInformation("SignalR SQL objects installed");
+                }
             }
             catch (Exception ex)
             {

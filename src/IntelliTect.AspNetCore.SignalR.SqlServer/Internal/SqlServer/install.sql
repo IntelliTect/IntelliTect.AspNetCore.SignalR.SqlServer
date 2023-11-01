@@ -9,11 +9,20 @@ DECLARE @SCHEMA_NAME nvarchar(32),
         @CREATE_MESSAGE_TABLE_DDL nvarchar(1000),
 		@CREATE_MESSAGE_ID_TABLE_DDL nvarchar(1000);
 
+
+-- IF MANUALLY INSTALLING, ADJUST THESE VARIABLES TO MATCH YOUR CONFIG:
+
 SET @SCHEMA_NAME = 'SignalR';
+SET @MESSAGE_TABLE_COUNT = 1;
+-- Replace 'YourHubName' with your hub's unqualified class name, 
+-- or according to your custom TableSlugGenerator setting if used.
+SET @MESSAGE_TABLE_NAME = 'Messages_YourHubName'; 
+
+-- END CUSTOMIZABLE VARIABLES
+
+
 SET @SCHEMA_TABLE_NAME = 'Schema';
 SET @TARGET_SCHEMA_VERSION = 1;
-SET @MESSAGE_TABLE_COUNT = 1;
-SET @MESSAGE_TABLE_NAME = 'Messages';
 SET @CREATE_MESSAGE_TABLE_DDL =
 N'CREATE TABLE [' + @SCHEMA_NAME + N'].[@TableName](
     [PayloadId] [bigint] NOT NULL,

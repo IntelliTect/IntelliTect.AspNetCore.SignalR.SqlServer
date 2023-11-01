@@ -47,6 +47,17 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         public bool AutoEnableServiceBroker { get; set; } = false;
 
         /// <summary>
+        /// <para>
+        /// If true (the default), on startup the application will attempt to automatically install its 
+        /// required tables into the target database. If disabled, you are required to install the tables yourself
+        /// using the <see href="https://github.com/IntelliTect/IntelliTect.AspNetCore.SignalR.SqlServer/blob/master/src/IntelliTect.AspNetCore.SignalR.SqlServer/Internal/SqlServer/install.sql">install.sql</see> 
+        /// script in this project's repository, changing the @SCHEMA_NAME, @MESSAGE_TABLE_COUNT, 
+        /// and @MESSAGE_TABLE_NAME variables to match your configuration. 
+        /// </para>
+        /// </summary>
+        public bool AutoInstallSchema { get; set; } = true;
+
+        /// <summary>
         /// Flag enum that specifies the allowed modes for retrieving messages from SQL Server. Default Auto.
         /// </summary>
         public SqlServerMessageMode Mode { get; set; } = SqlServerMessageMode.Auto;
