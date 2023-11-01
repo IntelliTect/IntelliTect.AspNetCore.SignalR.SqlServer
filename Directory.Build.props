@@ -1,0 +1,16 @@
+<Project>
+	<PropertyGroup>
+		<TargetFrameworks>net6.0;net7.0;net8.0</TargetFrameworks>
+		<LangVersion>11.0</LangVersion>
+		<Company>IntelliTect</Company>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+
+		<RepositoryUrl>https://github.com/IntelliTect/IntelliTect.AspNetCore.SignalR.SqlServer</RepositoryUrl>
+		<RepositoryType>git</RepositoryType>
+		<Authors>IntelliTect-Nuget</Authors>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<Description>A Microsoft SQL Server backplane for ASP.NET Core SignalR.</Description>
+		<PackageTags>IntelliTect aspnetcore sqlserver signalr</PackageTags>
+	</PropertyGroup>
+</Project>

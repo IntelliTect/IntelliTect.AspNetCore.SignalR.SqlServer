@@ -25,13 +25,15 @@ namespace DemoServer
         // This method gets called by the runtime. Use this method to add services to the container.
         public void ConfigureServices(IServiceCollection services)
         {
+            string connectionString = Configuration.GetConnectionString("Default")!;
+
             services.AddSingleton<IUserIdProvider, UserIdProvider>();
 
             services.AddRazorPages();
             services.AddSignalR()
                 .AddSqlServer(o =>
                 {
-                    o.ConnectionString = Configuration.GetConnectionString("Default");
+                    o.ConnectionString = connectionString;
                     o.AutoEnableServiceBroker = true;
                     o.TableSlugGenerator = hubType => hubType.Name;
                     o.TableCount = 1;
@@ -41,7 +43,7 @@ namespace DemoServer
             // Example of using DI to configure options:
             services.AddOptions<SqlServerOptions>().Configure<IConfiguration>((o, config) =>
             {
-                o.ConnectionString = config.GetConnectionString("Default");
+                o.ConnectionString = connectionString;
             });
 
             // Register specific hubs with specific backplanes:

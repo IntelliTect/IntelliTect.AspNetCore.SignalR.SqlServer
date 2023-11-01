@@ -33,7 +33,7 @@
 
 @code {
     [Parameter]
-    public string Suffix { get; set; }
+    public string? Suffix { get; set; }
 
     private HubConnection? hubConnection;
     private List<string> messages = new List<string>();

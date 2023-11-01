@@ -38,7 +38,7 @@ namespace DemoServer
             await Groups.AddToGroupAsync(Context.ConnectionId, Guid.Empty.ToString());
         }
 
-        public override async Task OnDisconnectedAsync(Exception exception)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
             _logger.LogInformation(exception, $"{nameof(OnDisconnectedAsync)} called.");
 
@@ -63,7 +63,7 @@ namespace DemoServer
           //  _logger.LogInformation($"{nameof(SendMessage)} called. ConnectionId:{Context.ConnectionId}, Name:{name}, Message:{message}");
             await Clients.Group(groupId).SendAsync("BroadcastMessage", name, "group");
             await Clients.Caller.SendAsync("BroadcastMessage", name, "caller");
-            await Clients.User(Context.UserIdentifier).SendAsync("BroadcastMessage", name, "user");
+            await Clients.User(Context.UserIdentifier!).SendAsync("BroadcastMessage", name, "user");
             await Clients.All.SendAsync("BroadcastMessage", name, "all");
             await Clients.AllExcept(Context.ConnectionId).SendAsync("BroadcastMessage", name, "allExcept");
         }
@@ -76,7 +76,7 @@ namespace DemoServer
             await Groups.AddToGroupAsync(Context.ConnectionId, Guid.Empty.ToString());
         }
 
-        public override async Task OnDisconnectedAsync(Exception exception)
+        public override async Task OnDisconnectedAsync(Exception? exception)
         {
             _logger.LogInformation(exception, $"{nameof(OnDisconnectedAsync)} called.");
 

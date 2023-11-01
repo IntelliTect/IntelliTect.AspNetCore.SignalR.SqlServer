@@ -16,17 +16,17 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
     public enum SqlServerMessageMode
     {
         /// <summary>
-        /// Use SQL Server Service Broker for dicovering when new messages are available.
+        /// Use SQL Server Service Broker for discovering when new messages are available.
         /// </summary>
         ServiceBroker = 1 << 0,
 
         /// <summary>
-        /// Use perioid polling to discover when new messages are available.
+        /// Use periodic polling to discover when new messages are available.
         /// </summary>
         Polling = 1 << 1,
 
         /// <summary>
-        /// Use the most suitable mode for acquring messages.
+        /// Use the most suitable mode for acquiring messages.
         /// </summary>
         Auto = ServiceBroker | Polling,
     }

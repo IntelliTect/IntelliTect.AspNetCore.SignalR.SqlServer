@@ -93,7 +93,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
         {
             public IReadOnlyList<IHubProtocol> AllProtocols => new List<IHubProtocol>() { new MessagePackHubProtocol() };
 
-            public IHubProtocol GetProtocol(string protocolName, IReadOnlyList<string> supportedProtocols)
+            public IHubProtocol GetProtocol(string protocolName, IReadOnlyList<string>? supportedProtocols)
             {
                 return AllProtocols[0];
             }
