@@ -133,7 +133,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 var ids = new string[idCount];
                 for (var i = 0; i < idCount; i++)
                 {
-                    ids[i] = reader.ReadString();
+                    ids[i] = reader.ReadString()!;
                 }
 
                 excludedConnectionIds = ids;
@@ -152,7 +152,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             ValidateArraySize(ref reader, 3, "TargetedInvocation");
 
             // Read target
-            var target = reader.ReadString();
+            var target = reader.ReadString()!;
 
             var invocation = ReadInvocationCore(ref reader);
 
@@ -190,7 +190,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             // See WriteAck for format
             reader.ReadByte(); // Skip header
             ValidateArraySize(ref reader, 2, "Ack");
-            return new SqlServerAckMessage(reader.ReadInt32(), reader.ReadString());
+            return new SqlServerAckMessage(reader.ReadInt32(), reader.ReadString()!);
         }
 
 
@@ -236,10 +236,10 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             ValidateArraySize(ref reader, 5, "GroupCommand");
 
             var id = reader.ReadInt32();
-            var serverName = reader.ReadString();
+            var serverName = reader.ReadString()!;
             var action = (GroupAction)reader.ReadByte();
-            var groupName = reader.ReadString();
-            var connectionId = reader.ReadString();
+            var groupName = reader.ReadString()!;
+            var connectionId = reader.ReadString()!;
 
             return new SqlServerGroupCommand(id, serverName, action, groupName, connectionId);
         }
@@ -270,7 +270,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             var serializations = new SerializedMessage[count];
             for (var i = 0; i < count; i++)
             {
-                var protocol = reader.ReadString();
+                var protocol = reader.ReadString()!;
                 var serialized = reader.ReadBytes()?.ToArray() ?? Array.Empty<byte>();
 
                 serializations[i] = new SerializedMessage(protocol, serialized);

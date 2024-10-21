@@ -1,8 +1,13 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+	<TargetFrameworks>net8.0</TargetFrameworks>
+  </PropertyGroup>
+	
   <ItemGroup>
     <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="7.0.0" />
   </ItemGroup>
-
+    
   <ItemGroup>
     <ProjectReference Include="..\..\src\IntelliTect.AspNetCore.SignalR.SqlServer\IntelliTect.AspNetCore.SignalR.SqlServer.csproj" />
   </ItemGroup>
