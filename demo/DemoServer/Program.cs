@@ -1,40 +1,63 @@
+using DemoServer;
 using IntelliTect.AspNetCore.SignalR.SqlServer;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
+using Microsoft.AspNetCore.SignalR;
 
-namespace DemoServer
+var builder = WebApplication.CreateBuilder(args);
+
+// Configure app configuration
+builder.Configuration
+    .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+    .AddJsonFile("appsettings.localhost.json", optional: true, reloadOnChange: true)
+    .AddEnvironmentVariables();
+
+// Configure logging
+builder.Logging.AddSimpleConsole(options =>
 {
-    public static class Program
-    {
-        public static void Main(string[] args)
-        {
-            CreateHostBuilder(args).Build().Run();
-        }
+    options.TimestampFormat = "hh:mm:ss ";
+    options.SingleLine = false;
+});
 
-        public static IHostBuilder CreateHostBuilder(string[] args) =>
-            Host.CreateDefaultBuilder(args)
-                .ConfigureWebHostDefaults(webBuilder =>
-                {
-                    webBuilder.UseStartup<Startup>()
-                    .ConfigureAppConfiguration((builder, config) => config
-                        .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
-                        .AddJsonFile("appsettings.localhost.json", optional: true, reloadOnChange: true)
-                        .AddEnvironmentVariables()
-                    )
-                    .ConfigureLogging(builder =>
-                    {
-                        builder.AddSimpleConsole(options =>
-                        {
-                            options.TimestampFormat = "hh:mm:ss ";
-                            options.SingleLine = false;
-                        });
-                    });
-                });
-    }
+// Configure services
+string connectionString = builder.Configuration.GetConnectionString("Default")!;
+
+builder.Services.AddSingleton<IUserIdProvider, UserIdProvider>();
+builder.Services.AddRazorPages();
+builder.Services.AddSignalR()
+    .AddSqlServer(o =>
+    {
+        o.ConnectionString = connectionString;
+        o.AutoEnableServiceBroker = true;
+        o.TableSlugGenerator = hubType => hubType.Name;
+        o.TableCount = 1;
+        o.SchemaName = "SignalRCore";
+    });
+
+builder.Services.AddOptions<SqlServerOptions>().Configure<IConfiguration>((o, config) =>
+{
+    o.ConnectionString = connectionString;
+});
+
+// Build the app
+var app = builder.Build();
+
+// Configure middleware
+if (app.Environment.IsDevelopment())
+{
+    app.UseDeveloperExceptionPage();
 }
+else
+{
+    app.UseExceptionHandler("/Error");
+    app.UseHsts();
+}
+
+app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseAuthorization();
+
+app.MapRazorPages();
+app.MapHub<ChatHubA>("/chatHubA");
+app.MapHub<ChatHubB>("/chatHubB");
+
+app.Run();
