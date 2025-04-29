@@ -1,14 +1,7 @@
 // Copyright (c) .NET Foundation. All rights reserved.
 // Licensed under the Apache License, Version 2.0. See License.txt in the project root for license information.
 
-using System;
-using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
-using System.Threading;
-using System.Threading.Tasks;
 using IntelliTect.AspNetCore.SignalR.SqlServer.Internal.Messages;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using IntelliTect.AspNetCore.SignalR.SqlServer.Internal;
@@ -16,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.AspNetCore.SignalR;
 using System.Runtime.CompilerServices;
+using Microsoft.Extensions.Hosting;
 
 [assembly: InternalsVisibleTo("IntelliTect.AspNetCore.SignalR.SqlServer.Tests")]
 
@@ -49,26 +43,17 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
         /// <param name="logger">The logger to write information about what the class is doing.</param>
         /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the SQL Server connection.</param>
         /// <param name="hubProtocolResolver">The <see cref="IHubProtocolResolver"/> to get an <see cref="IHubProtocol"/> instance when writing to connections.</param>
-        public SqlServerHubLifetimeManager(ILogger<SqlServerHubLifetimeManager<THub>> logger,
-                                       IOptions<SqlServerOptions> options,
-                                       IHubProtocolResolver hubProtocolResolver)
-            : this(logger, options, hubProtocolResolver, globalHubOptions: null, hubOptions: null)
-        {
-        }
-
-        /// <summary>
-        /// Constructs the <see cref="SqlServerHubLifetimeManager{THub}"/> with types from Dependency Injection.
-        /// </summary>
-        /// <param name="logger">The logger to write information about what the class is doing.</param>
-        /// <param name="options">The <see cref="SqlServerOptions"/> that influence behavior of the SQL Server connection.</param>
-        /// <param name="hubProtocolResolver">The <see cref="IHubProtocolResolver"/> to get an <see cref="IHubProtocol"/> instance when writing to connections.</param>
         /// <param name="globalHubOptions">The global <see cref="HubOptions"/>.</param>
         /// <param name="hubOptions">The <typeparamref name="THub"/> specific options.</param>
-        public SqlServerHubLifetimeManager(ILogger<SqlServerHubLifetimeManager<THub>> logger,
-                                       IOptions<SqlServerOptions> options,
-                                       IHubProtocolResolver hubProtocolResolver,
-                                       IOptions<HubOptions>? globalHubOptions,
-                                       IOptions<HubOptions<THub>>? hubOptions)
+        /// <param name="lifetime">The host lifetime instance</param>
+        public SqlServerHubLifetimeManager(
+            ILogger<SqlServerHubLifetimeManager<THub>> logger,
+            IOptions<SqlServerOptions> options,
+            IHubProtocolResolver hubProtocolResolver,
+            IOptions<HubOptions>? globalHubOptions,
+            IOptions<HubOptions<THub>>? hubOptions,
+            IHostApplicationLifetime lifetime
+        )
         {
             _logger = logger;
             _options = options.Value;
@@ -86,7 +71,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                 _protocol = new SqlServerProtocol(new DefaultHubMessageSerializer(hubProtocolResolver, supportedProtocols, null));
             }
 
-            _ = EnsureSqlServerConnection();
+            // Delay until startup so the application can have a chance to create the database
+            // if the application does that in Program.cs before app.Run().
+            lifetime.ApplicationStarted.Register(() => _ = EnsureSqlServerConnection());
         }
 
         /// <inheritdoc />
