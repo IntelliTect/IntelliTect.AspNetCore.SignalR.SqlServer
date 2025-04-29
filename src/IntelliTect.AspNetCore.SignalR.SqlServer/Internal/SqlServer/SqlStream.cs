@@ -37,14 +37,14 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
         public Task Send(byte[] message)
         {
-            _logger.LogTrace("{0}Saving payload to SQL server", _tracePrefix);
+            _logger.LogTrace("{HubStream}: Saving payload to SQL server", _tracePrefix);
 
             return _sender.Send(message);
         }
 
         public void Dispose()
         {
-            _logger.LogTrace("{0}Disposing stream", _tracePrefix);
+            _logger.LogTrace("{HubStream}: Disposing stream", _tracePrefix);
 
             _receiver.Dispose();
         }
