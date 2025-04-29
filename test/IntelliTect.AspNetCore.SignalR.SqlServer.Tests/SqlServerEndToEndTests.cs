@@ -63,7 +63,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
             };
 
             var prefix = nameof(CanSendAndReceivePayloads_WithServiceBroker_UnderHeavyLoad);
-            var installer = new SqlInstaller(options, NullLogger.Instance, prefix);
+            var installer = new SqlInstaller(options, NullLogger.Instance, prefix, prefix);
             var receiver = new SqlReceiver(options, NullLogger.Instance, prefix + "_0", "");
 
             var receivedMessages = new ConcurrentBag<byte[]>();
@@ -115,7 +115,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
 
         private async Task RunCore(SqlServerOptions options, string prefix)
         {
-            var installer = new SqlInstaller(options, NullLogger.Instance, prefix);
+            var installer = new SqlInstaller(options, NullLogger.Instance, prefix, prefix);
             var sender = new SqlSender(options, NullLogger.Instance, prefix + "_0");
             var receiver = new SqlReceiver(options, NullLogger.Instance, prefix + "_0", "");
 
