@@ -15,6 +15,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
     public class SqlServerOptions
     {
         /// <summary>
+        /// Shared lock to prevent multiple concurrent installs against the same DB.
+        /// This prevents auto-enable of service broker from deadlocking 
+        /// when an application has multiple hubs.
+        /// </summary>
+        internal readonly SemaphoreSlim InstallLock = new SemaphoreSlim(1);
+
+        /// <summary>
         /// The SQL Server connection string to use.
         /// </summary>
         [Required]

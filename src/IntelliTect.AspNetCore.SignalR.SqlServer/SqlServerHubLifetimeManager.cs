@@ -371,14 +371,14 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
                 {
                     if (_streams.Count == 0)
                     {
-                        var installer = new SqlInstaller(_options, _logger, _tableNamePrefix);
+                        var installer = new SqlInstaller(_options, _logger, _tableNamePrefix, typeof(THub).FullName!);
                         await installer.Install();
 
                         for (var i = 0; i < _options.TableCount; i++)
                         {
                             var streamIndex = i;
                             var tableName = string.Format(CultureInfo.InvariantCulture, "{0}_{1}", _tableNamePrefix, streamIndex);
-                            var tracePrefix = $"{typeof(THub).FullName}:{streamIndex}: ";
+                            var tracePrefix = $"{typeof(THub).FullName}:{streamIndex}";
 
                             var stream = new SqlStream(
                                 _options,
