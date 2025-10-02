@@ -297,6 +297,14 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
 
         private async Task PublishAsync(MessageType type, byte[] payload)
         {
+            using var activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Publish");
+            if (activity != null)
+            {
+                activity.SetTag("signalr.hub", typeof(THub).FullName!);
+                activity.SetTag("signalr.sql.message_type", type.ToString());
+                activity.SetTag("signalr.sql.message_size_bytes", payload.Length);
+            }
+
             await EnsureSqlServerConnection();
             _logger.Published(type.ToString());
 

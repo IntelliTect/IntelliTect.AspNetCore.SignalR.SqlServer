@@ -42,6 +42,8 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         private bool _disposed;
         private readonly string _maxIdSql = "SELECT [PayloadId] FROM [{0}].[{1}_Id]";
         private readonly string _selectSql = "SELECT [PayloadId], [Payload], [InsertedOn] FROM [{0}].[{1}] WHERE [PayloadId] > @PayloadId";
+        private readonly TimeSpan _activityMaxDuration = TimeSpan.FromMinutes(10);
+            
 
         public SqlReceiver(SqlServerOptions options, ILogger logger, string tableName, string tracePrefix)
         {
@@ -73,14 +75,26 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         {
             if (_cts.IsCancellationRequested) return;
 
-            if (!_lastPayloadId.HasValue)
+            bool useBroker = _options.Mode.HasFlag(SqlServerMessageMode.ServiceBroker);
+
+            using (var activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Start"))
             {
-                _lastPayloadId = await GetLastPayloadId();
+                activity?.SetTag("signalr.hub", _tracePrefix);
+                activity?.SetTag("signalr.sql.mode", _options.Mode.ToString());
+
+                if (!_lastPayloadId.HasValue)
+                {
+                    _lastPayloadId = await GetLastPayloadId();
+                }
+                if (useBroker)
+                {
+                    useBroker = StartSqlDependencyListener();
+                }
             }
 
             if (_cts.IsCancellationRequested) return;
 
-            if (_options.Mode.HasFlag(SqlServerMessageMode.ServiceBroker) && StartSqlDependencyListener())
+            if (useBroker)
             {
                 await NotificationLoop(_cts.Token);
             }
@@ -102,6 +116,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             while (!_notificationsDisabled)
             {
                 if (cancellationToken.IsCancellationRequested) return;
+
+                using var activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Listen");
+                activity?.SetTag("signalr.hub", _tracePrefix);
 
                 try
                 {
@@ -170,6 +187,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                             else
                             {
                                 // Unknown subscription error, let's stop using query notifications
+                                activity?.SetStatus(ActivityStatusCode.Error);
+                                // Dispose so this activity doesn't become the parent of the next loop.
+                                activity?.Dispose();
                                 _notificationsDisabled = true;
                                 await StartLoop();
                                 return;
@@ -180,6 +200,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 catch (TaskCanceledException) { return; }
                 catch (Exception ex)
                 {
+                    activity?.SetStatus(ActivityStatusCode.Error);
                     _logger.LogError(ex, "{HubStream}: Error in SQL notification loop", _tracePrefix);
 
                     await Task.Delay(1000, cancellationToken);
@@ -196,55 +217,74 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         /// </summary>
         private async Task PollingLoop(CancellationToken cancellationToken)
         {
-            var delays = _updateLoopRetryDelays;
-            for (var retrySetIndex = 0; retrySetIndex < delays.Length; retrySetIndex++)
+            var activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Poll");
+            activity?.SetTag("signalr.hub", _tracePrefix);
+
+            try
             {
-                Tuple<int, int> retry = delays[retrySetIndex];
-                var retryDelay = retry.Item1;
-                var numRetries = retry.Item2;
 
-                for (var retryIndex = 0; retryIndex < numRetries; retryIndex++)
+                var delays = _updateLoopRetryDelays;
+                for (var retrySetIndex = 0; retrySetIndex < delays.Length; retrySetIndex++)
                 {
-                    if (cancellationToken.IsCancellationRequested) return;
+                    Tuple<int, int> retry = delays[retrySetIndex];
+                    var retryDelay = retry.Item1;
+                    var numRetries = retry.Item2;
 
-                    var recordCount = 0;
-                    try
+                    for (var retryIndex = 0; retryIndex < numRetries; retryIndex++)
                     {
-                        if (retryDelay > 0)
-                        {
-                            _logger.LogTrace("{HubStream}: Waiting {1}ms before checking for messages again", _tracePrefix, retryDelay);
+                        if (cancellationToken.IsCancellationRequested) return;
 
-                            await Task.Delay(retryDelay, cancellationToken);
+                        // Restart activity every 10 minutes to prevent long-running activities
+                        if (activity != null && DateTime.UtcNow - activity.StartTimeUtc > _activityMaxDuration)
+                        {
+                            activity?.Dispose();
+                            activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Poll");
+                            activity?.SetTag("signalr.hub", _tracePrefix);
                         }
 
-                        recordCount = await ReadRows(null);
-                    }
-                    catch (TaskCanceledException) { return; }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "{HubStream}: Error in SQL polling loop", _tracePrefix);
-                    }
+                        var recordCount = 0;
+                        try
+                        {
+                            if (retryDelay > 0)
+                            {
+                                _logger.LogTrace("{HubStream}: Waiting {Delay}ms before checking for messages again", _tracePrefix, retryDelay);
 
-                    if (recordCount > 0)
-                    {
-                        _logger.LogDebug("{HubStream}: {RecordCount} records received", _tracePrefix, recordCount);
+                                await Task.Delay(retryDelay, cancellationToken);
+                            }
 
-                        // We got records so start the retry loop again
-                        // at the lowest delay.
-                        retrySetIndex = -1;
-                        break;
-                    }
+                            recordCount = await ReadRows(null);
+                        }
+                        catch (TaskCanceledException) { return; }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "{HubStream}: Error in SQL polling loop", _tracePrefix);
+                        }
 
-                    _logger.LogTrace("{HubStream}: No records received", _tracePrefix);
+                        if (recordCount > 0)
+                        {
+                            _logger.LogDebug("{HubStream}: {RecordCount} records received", _tracePrefix, recordCount);
 
-                    var isLastRetry = retrySetIndex == delays.Length - 1 && retryIndex == numRetries - 1;
+                            // We got records so start the retry loop again
+                            // at the lowest delay.
+                            retrySetIndex = -1;
+                            break;
+                        }
 
-                    if (isLastRetry)
-                    {
-                        // Last retry loop so just stay looping on the last retry delay
-                        retryIndex--;
+                        _logger.LogTrace("{HubStream}: No records received", _tracePrefix);
+
+                        var isLastRetry = retrySetIndex == delays.Length - 1 && retryIndex == numRetries - 1;
+
+                        if (isLastRetry)
+                        {
+                            // Last retry loop so just stay looping on the last retry delay
+                            retryIndex--;
+                        }
                     }
                 }
+            }
+            finally
+            {
+                activity?.Dispose();
             }
 
             _logger.LogDebug("{HubStream}: SQL polling loop fell out", _tracePrefix);

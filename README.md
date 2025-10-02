@@ -75,6 +75,64 @@ Alternatively, you may configure `IntelliTect.AspNetCore.SignalR.SqlServer.SqlSe
 services.Configure<SqlServerOptions>(Configuration.GetSection("SignalR:SqlServer"));
 ```
 
+## OpenTelemetry Support
+
+This library includes OpenTelemetry instrumentation that wraps background database queries in activities, making them more easily identified and grouped in your collected telemetry.
+
+### Setup
+
+To enable OpenTelemetry collection of these trace spans, add the source to your tracing configuration:
+
+``` cs
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSource("IntelliTect.AspNetCore.SignalR.SqlServer")
+        // ... other instrumentation
+    );
+```
+
+### Activity Names
+
+The library creates activities for the following operations:
+- `SignalR.SqlServer.Install` - Database schema installation/setup
+- `SignalR.SqlServer.Start` - Receiver startup operations
+- `SignalR.SqlServer.Listen` - Service Broker listening operations (database reads)
+- `SignalR.SqlServer.Poll` - Polling operations (database reads, when Service Broker is not used)
+- `SignalR.SqlServer.Publish` - Message publishing operations (database writes)
+
+### Filtering Noise
+
+Since the SQL Server backplane performs frequent polling operations, you may want to filter out successful, fast queries to reduce trace noise. 
+
+The following example assumes using package `OpenTelemetry.Instrumentation.SqlClient` for SqlClient instrumentation. There are currently [4 different packages for SqlClient instrumentation](https://github.com/dotnet/aspire/issues/2427#issuecomment-3259572206), so your method of collecting or filtering the command details may vary if you're using Aspire's instrumentation or Azure Monitor's instrumentation. Be sure to update the CommandText filter if you customize the schema name:
+
+``` cs
+builder.Services.AddOpenTelemetry()
+    .WithTracing(tracing => tracing
+        .AddSqlClientInstrumentation(options =>
+        {
+            options.Enrich = (activity, _, cmd) => activity.SetCustomProperty("sqlCommand", cmd);
+        })
+        .AddSource("IntelliTect.AspNetCore.SignalR.SqlServer")
+        .AddProcessor<SignalRTelemetryNoiseFilter>()
+    );
+
+internal sealed class SignalRTelemetryNoiseFilter : BaseProcessor<Activity>
+{
+    public override void OnEnd(Activity activity)
+    {
+        if (activity.Status != ActivityStatusCode.Error &&
+            activity.Duration.TotalMilliseconds < 100 &&
+            activity.GetCustomProperty("sqlCommand") is DbCommand command &&
+            command.CommandText.StartsWith("SELECT [PayloadId], [Payload], [InsertedOn] FROM [SignalR]") == true)
+        {
+            // Sample out successful and fast SignalR queries
+            activity.ActivityTraceFlags &= ~ActivityTraceFlags.Recorded;
+        }
+    }
+}
+```
+
 ## Caveats
 
 As mentioned above, if SQL Server Service Broker is not available, messages will not always be transmitted immediately since a fallback of periodic querying must be used.

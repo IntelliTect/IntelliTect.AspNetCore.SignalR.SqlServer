@@ -3,6 +3,7 @@
 
 using System;
 using System.ComponentModel.DataAnnotations;
+using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -14,6 +15,8 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
     /// </summary>
     public class SqlServerOptions
     {
+        internal static readonly ActivitySource ActivitySource = new("IntelliTect.AspNetCore.SignalR.SqlServer");
+        
         /// <summary>
         /// Shared lock to prevent multiple concurrent installs against the same DB.
         /// This prevents auto-enable of service broker from deadlocking 

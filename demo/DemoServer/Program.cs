@@ -1,6 +1,7 @@
+using System.Data.Common;
+using System.Diagnostics;
 using DemoServer;
 using IntelliTect.AspNetCore.SignalR.SqlServer;
-using IntelliTect.AspNetCore.SignalR.SqlServer.OpenTelemetry;
 using Microsoft.AspNetCore.SignalR;
 using OpenTelemetry;
 using OpenTelemetry.Metrics;
@@ -36,11 +37,11 @@ builder.Services.AddOpenTelemetry()
     )
     .WithTracing(tracing => tracing
         .AddSource(builder.Environment.ApplicationName)
+        .AddSource("IntelliTect.AspNetCore.SignalR.SqlServer")
+        .AddProcessor<SignalRMessagesNoiseFilterProcessor>()
         .AddAspNetCoreInstrumentation()
-       // .AddSignalRSqlServerInstrumentation()
         .AddSqlClientInstrumentation(tracing =>
         {
-            tracing.SetDbStatementForText = true;
             tracing.Enrich = (activity, _, cmd) => activity.SetCustomProperty("sqlCommand", cmd);
         })
 );
@@ -99,3 +100,19 @@ app.MapPost("/api/broadcast", async (IHubContext<ChatHubA> hubContext, Broadcast
 app.Run();
 
 public record BroadcastRequest(string Message);
+
+
+internal sealed class SignalRMessagesNoiseFilterProcessor : BaseProcessor<Activity>
+{
+    public override void OnEnd(Activity activity)
+    {
+        if (activity.Status != ActivityStatusCode.Error &&
+            activity.Duration.TotalMilliseconds < 100 &&
+            activity.GetCustomProperty("sqlCommand") is DbCommand command &&
+            command.CommandText.StartsWith("SELECT [PayloadId], [Payload], [InsertedOn] FROM [SignalR") == true)
+        {
+            // Sample out successful and fast SignalR queries
+            activity.ActivityTraceFlags &= ~ActivityTraceFlags.Recorded;
+        }
+    }
+}

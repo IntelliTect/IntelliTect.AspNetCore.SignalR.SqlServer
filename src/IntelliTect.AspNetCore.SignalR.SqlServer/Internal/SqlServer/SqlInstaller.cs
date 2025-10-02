@@ -22,6 +22,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                 return;
             }
 
+            using var activity = SqlServerOptions.ActivitySource.StartActivity("SignalR.SqlServer.Install");
+            activity?.SetTag("signalr.hub", tracePrefix);
+
             await options.InstallLock.WaitAsync();
             logger.LogInformation("{HubName}: Start installing SignalR SQL objects", tracePrefix);
             try
@@ -55,12 +58,13 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                     command.CommandText = script;
                     await command.ExecuteNonQueryAsync();
 
-                    logger.LogInformation("{HubName}: SignalR SQL objects installed", messagesTableNamePrefix);
+                    logger.LogInformation("{HubName}: SignalR SQL objects installed", tracePrefix);
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{HubName}: Unable to install SignalR SQL objects", messagesTableNamePrefix);
+                activity?.SetStatus(ActivityStatusCode.Error, ex.Message);
+                logger.LogError(ex, "{HubName}: Unable to install SignalR SQL objects", tracePrefix);
                 throw;
             }
             finally
