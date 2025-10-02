@@ -26,7 +26,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             _logger = logger;
             _tracePrefix = tracePrefix;
 
-            _sender = new SqlSender(options, logger, tableName);
+            _sender = new SqlSender(options, logger, tableName, _tracePrefix);
             _receiver = new SqlReceiver(options, logger, tableName, _tracePrefix);
         }
 

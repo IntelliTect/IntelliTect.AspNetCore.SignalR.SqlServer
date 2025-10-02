@@ -6,6 +6,7 @@ using System.Collections.Generic;
 using System.Data;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,21 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
         private readonly string _maxIdSql = "SELECT [PayloadId] FROM [{0}].[{1}_Id]";
         private readonly string _selectSql = "SELECT [PayloadId], [Payload], [InsertedOn] FROM [{0}].[{1}] WHERE [PayloadId] > @PayloadId";
         private readonly TimeSpan _activityMaxDuration = TimeSpan.FromMinutes(10);
+        
+        private static readonly Histogram<double> _pollDelayHistogram = SqlServerOptions.Meter.CreateHistogram<double>(
+            "signalr.sqlserver.poll_delay",
+            "ms",
+            "Distribution of polling delay intervals showing backoff patterns");
+            
+        private static readonly Counter<long> _rowsReadCounter = SqlServerOptions.Meter.CreateCounter<long>(
+            "signalr.sqlserver.rows_read_total",
+            "rows",
+            "Total number of message rows read from SQL Server");
+            
+        private static readonly Histogram<double> _queryDurationHistogram = SqlServerOptions.Meter.CreateHistogram<double>(
+            "signalr.sqlserver.query_duration",
+            "ms",
+            "Duration of SQL Server query execution for reading messages");
             
 
         public SqlReceiver(SqlServerOptions options, ILogger logger, string tableName, string tracePrefix)
@@ -222,7 +238,6 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 
             try
             {
-
                 var delays = _updateLoopRetryDelays;
                 for (var retrySetIndex = 0; retrySetIndex < delays.Length; retrySetIndex++)
                 {
@@ -253,6 +268,10 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
                             }
 
                             recordCount = await ReadRows(null);
+                            
+                            // Record polling delay distribution to show backoff patterns
+                            _pollDelayHistogram.Record(retryDelay, 
+                                new KeyValuePair<string, object?>("signalr.hub", _tracePrefix));
                         }
                         catch (TaskCanceledException) { return; }
                         catch (Exception ex)
@@ -336,6 +355,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             beforeExecute?.Invoke(command);
 
             // Fetch any rows that might already be available after the last PayloadId.
+            var start = DateTime.UtcNow;
             var reader = await command.ExecuteReaderAsync();
             var recordCount = 0;
 
@@ -343,6 +363,18 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             {
                 recordCount++;
                 await ProcessRecord(reader);
+            }
+
+            // Record query duration and rows read metrics
+            if (_queryDurationHistogram.Enabled)
+            {
+                _queryDurationHistogram.Record((DateTime.UtcNow - start).TotalMilliseconds, 
+                    new KeyValuePair<string, object?>("signalr.hub", _tracePrefix));
+            }
+                
+            if (recordCount > 0 && _rowsReadCounter.Enabled)
+            {
+                _rowsReadCounter.Add(recordCount, new KeyValuePair<string, object?>("signalr.hub", _tracePrefix));
             }
 
             return recordCount;

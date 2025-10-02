@@ -78,15 +78,19 @@ services.Configure<SqlServerOptions>(Configuration.GetSection("SignalR:SqlServer
 ## OpenTelemetry Support
 
 This library includes OpenTelemetry instrumentation that wraps background database queries in activities, making them more easily identified and grouped in your collected telemetry.
-
+a
 ### Setup
 
-To enable OpenTelemetry collection of these trace spans, add the source to your tracing configuration:
+To enable OpenTelemetry collection of these trace spans and metrics, add the source and meter to your configuration:
 
 ``` cs
 builder.Services.AddOpenTelemetry()
     .WithTracing(tracing => tracing
         .AddSource("IntelliTect.AspNetCore.SignalR.SqlServer")
+        // ... other instrumentation
+    )
+    .WithMetrics(metrics => metrics
+        .AddMeter("IntelliTect.AspNetCore.SignalR.SqlServer")
         // ... other instrumentation
     );
 ```
@@ -99,6 +103,17 @@ The library creates activities for the following operations:
 - `SignalR.SqlServer.Listen` - Service Broker listening operations (database reads)
 - `SignalR.SqlServer.Poll` - Polling operations (database reads, when Service Broker is not used)
 - `SignalR.SqlServer.Publish` - Message publishing operations (database writes)
+
+### Metrics
+
+The library also provides metrics to help monitor the health and performance of the SQL Server backplane:
+
+- `signalr.sqlserver.poll_delay` - Histogram showing the distribution of polling delay intervals, useful for understanding backoff patterns and system health
+- `signalr.sqlserver.query_duration` - Histogram tracking the duration of SQL Server query execution for reading messages
+- `signalr.sqlserver.rows_read_total` - Counter tracking the total number of message rows read from SQL Server
+- `signalr.sqlserver.rows_written_total` - Counter tracking the total number of message rows written to SQL Server
+
+These metrics help you understand polling patterns, database performance, message throughput, and can be useful for tuning performance or identifying when Service Broker fallback to polling occurs.
 
 ### Filtering Noise
 

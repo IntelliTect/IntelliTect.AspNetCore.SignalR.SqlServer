@@ -3,6 +3,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.Metrics;
 using System.Globalization;
 using System.Threading.Tasks;
 using Microsoft.Data.SqlClient;
@@ -12,15 +13,22 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
 {
     internal class SqlSender
     {
+        private static readonly Counter<long> _rowsWrittenCounter = SqlServerOptions.Meter.CreateCounter<long>(
+            "signalr.sqlserver.rows_written_total",
+            "rows",
+            "Total number of message rows written to SQL Server");
+            
         private readonly string _insertDml;
         private readonly ILogger _logger;
         private readonly SqlServerOptions _options;
+        private readonly string _hubName;
 
-        public SqlSender(SqlServerOptions options, ILogger logger, string tableName)
+        public SqlSender(SqlServerOptions options, ILogger logger, string tableName, string hubName)
         {
             _options = options;
             _insertDml = BuildInsertString(tableName);
             _logger = logger;
+            _hubName = hubName;
         }
 
         private string BuildInsertString(string tableName)
@@ -43,6 +51,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Internal
             await connection.OpenAsync();
 
             await command.ExecuteNonQueryAsync();
+            
+            // Record rows written metric
+            _rowsWrittenCounter.Add(1, new KeyValuePair<string, object?>("signalr.hub", _hubName));
         }
     }
 }

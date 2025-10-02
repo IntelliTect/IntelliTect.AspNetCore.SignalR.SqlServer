@@ -4,6 +4,7 @@
 using System;
 using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
+using System.Diagnostics.Metrics;
 using System.IO;
 using System.Net;
 using System.Threading.Tasks;
@@ -16,6 +17,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer
     public class SqlServerOptions
     {
         internal static readonly ActivitySource ActivitySource = new("IntelliTect.AspNetCore.SignalR.SqlServer");
+        internal static readonly Meter Meter = new("IntelliTect.AspNetCore.SignalR.SqlServer");
         
         /// <summary>
         /// Shared lock to prevent multiple concurrent installs against the same DB.

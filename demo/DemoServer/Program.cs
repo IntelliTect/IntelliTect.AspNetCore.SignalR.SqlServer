@@ -34,6 +34,7 @@ builder.Services.AddOpenTelemetry()
     .WithMetrics(metrics => metrics
         .AddAspNetCoreInstrumentation()
         .AddSqlClientInstrumentation()
+        .AddMeter("IntelliTect.AspNetCore.SignalR.SqlServer")
     )
     .WithTracing(tracing => tracing
         .AddSource(builder.Environment.ApplicationName)
