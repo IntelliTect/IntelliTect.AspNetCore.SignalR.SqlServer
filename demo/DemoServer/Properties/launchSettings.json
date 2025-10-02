@@ -2,7 +2,7 @@
   "profiles": {
     "DemoServer1": {
       "commandName": "Project",
-      "dotnetRunMessages": "true",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
       "applicationUrl": "https://localhost:8001",
       "environmentVariables": {
@@ -12,7 +12,7 @@
     },
     "DemoServer2": {
       "commandName": "Project",
-      "dotnetRunMessages": "true",
+      "dotnetRunMessages": true,
       "launchBrowser": true,
       "applicationUrl": "https://localhost:8002",
       "environmentVariables": {

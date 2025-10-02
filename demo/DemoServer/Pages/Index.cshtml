@@ -2,6 +2,27 @@
 
 <script src="~/lib/microsoft/signalr/dist/browser/signalr.js"></script>
 <script src="~/js/chat.js"></script>
+
+<div class="row mb-3">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <h5>Send message via HubContext</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-8">
+                        <input type="text" id="serverMessageInput" class="form-control" placeholder="Enter message to broadcast from server..." />
+                    </div>
+                    <div class="col-4">
+                        <button id="broadcastButton" class="btn btn-primary">Broadcast from Server</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 <div class="row">
     @foreach (var suffix in new[] { "A", "B" })
     {
