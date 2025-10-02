@@ -78,7 +78,7 @@ services.Configure<SqlServerOptions>(Configuration.GetSection("SignalR:SqlServer
 ## OpenTelemetry Support
 
 This library includes OpenTelemetry instrumentation that wraps background database queries in activities, making them more easily identified and grouped in your collected telemetry.
-a
+
 ### Setup
 
 To enable OpenTelemetry collection of these trace spans and metrics, add the source and meter to your configuration:
