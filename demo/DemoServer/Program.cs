@@ -41,10 +41,7 @@ builder.Services.AddOpenTelemetry()
         .AddSource("IntelliTect.AspNetCore.SignalR.SqlServer")
         .AddProcessor<SignalRMessagesNoiseFilterProcessor>()
         .AddAspNetCoreInstrumentation()
-        .AddSqlClientInstrumentation(tracing =>
-        {
-            tracing.Enrich = (activity, _, cmd) => activity.SetCustomProperty("sqlCommand", cmd);
-        })
+        .AddSqlClientInstrumentation()
 );
 
 
@@ -109,8 +106,8 @@ internal sealed class SignalRMessagesNoiseFilterProcessor : BaseProcessor<Activi
     {
         if (activity.Status != ActivityStatusCode.Error &&
             activity.Duration.TotalMilliseconds < 100 &&
-            activity.GetCustomProperty("sqlCommand") is DbCommand command &&
-            command.CommandText.StartsWith("SELECT [PayloadId], [Payload], [InsertedOn] FROM [SignalR") == true)
+            (activity.GetTagItem("db.query.text") ?? activity.GetTagItem("db.statement")) is string command &&
+            command.StartsWith("SELECT [PayloadId], [Payload], [InsertedOn] FROM [SignalR"))
         {
             // Sample out successful and fast SignalR queries
             activity.ActivityTraceFlags &= ~ActivityTraceFlags.Recorded;
