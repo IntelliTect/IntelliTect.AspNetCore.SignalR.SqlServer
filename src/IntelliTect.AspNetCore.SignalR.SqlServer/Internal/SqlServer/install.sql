@@ -161,6 +161,8 @@ IF @CURRENT_SCHEMA_VERSION IS NULL OR @CURRENT_SCHEMA_VERSION <= @TARGET_SCHEMA_
 
 		COMMIT TRANSACTION;
 
+		SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
 		PRINT 'SignalR SQL objects installed';
 	END
 
@@ -168,6 +170,9 @@ ELSE -- @CURRENT_SCHEMA_VERSION > @TARGET_SCHEMA_VERSION
 	BEGIN
 		-- Configured SqlMessageBus is lower version than current DB schema, just bail out
 		ROLLBACK TRANSACTION;
+
+		SET TRANSACTION ISOLATION LEVEL READ COMMITTED;
+
 		RAISERROR(N'SignalR database current schema version %d is newer than the configured SqlMessageBus schema version %d. Please update to the latest IntelliTect.AspNetCore.SignalR.SqlServer NuGet package.', 11, 1,
 			@CURRENT_SCHEMA_VERSION, @TARGET_SCHEMA_VERSION);
 	END
