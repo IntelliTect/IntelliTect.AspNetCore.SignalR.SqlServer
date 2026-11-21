@@ -3,26 +3,14 @@ on:
     tags:
     - "*"
 jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
   build:
+    needs: test
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: write
-    services:
-      sqlserver:
-        image: mcr.microsoft.com/mssql/server:2022-latest
-        env:
-          ACCEPT_EULA: "Y"
-          MSSQL_SA_PASSWORD: Test_Passw0rd!
-        ports:
-        - 1433:1433
-        options: >-
-          --health-cmd "/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P 'Test_Passw0rd!' -Q 'SELECT 1'"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 10
-    env:
-      SIGNALR_TESTS_SQLSERVER: Server=localhost;User Id=sa;Password=Test_Passw0rd!;TrustServerCertificate=True
     steps:
     - name: Checkout
       uses: actions/checkout@v7
@@ -39,8 +27,6 @@ jobs:
       run: echo "VERSION=${GITHUB_REF/refs\/tags\//}" >> $GITHUB_ENV
     - name: Build
       run: dotnet build --configuration Release /p:Version=${VERSION}
-    - name: Test
-      run: dotnet test --configuration Release /p:Version=${VERSION} --no-build
     - name: Pack
       run: dotnet pack --configuration Release /p:Version=${VERSION} --no-build --output .
 
