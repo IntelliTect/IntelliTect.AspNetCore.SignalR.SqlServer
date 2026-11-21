@@ -14,11 +14,12 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
 {
     public class SqlServerEndToEndTests
     {
-        private const string databaseName = "SignalRUnitTestsDb";
-        private const string connectionString = 
+        // Per-runtime database: each target framework's test run executes in parallel.
+        private static readonly string databaseName = "SignalRUnitTestsDb_net" + Environment.Version.Major;
+        private static readonly string connectionString =
             "Server=localhost;Database=" + databaseName + ";Trusted_Connection=True;Timeout=5;TrustServerCertificate=True";
 
-        [SkippableFact]
+        [Fact]
         public async Task CanSendAndReceivePayloads_WithServiceBroker()
         {
             await CreateDatabaseAsync();
@@ -34,7 +35,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
             await RunCore(options, prefix);
         }
 
-        [SkippableFact]
+        [Fact]
         public async Task CanSendAndReceivePayloads_WithPolling()
         {
             await CreateDatabaseAsync();
@@ -50,7 +51,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
         }
 
 
-        [SkippableFact]
+        [Fact]
         public async Task CanSendAndReceivePayloads_WithServiceBroker_UnderHeavyLoad()
         {
             await CreateDatabaseAsync();
@@ -74,7 +75,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
                 return Task.CompletedTask;
             });
             // Give the receiver time to reach a steady state (waiting).
-            await Task.Delay(150);
+            await Task.Delay(150, TestContext.Current.CancellationToken);
 
             var cts = new CancellationTokenSource();
 
@@ -101,11 +102,11 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
 
             var payload = new byte[255];
             new Random().NextBytes(payload);
-            await Task.Delay(10000);
+            await Task.Delay(10000, TestContext.Current.CancellationToken);
             cts.Cancel();
 
             // Give the receiver time to reach a steady state (waiting).
-            await Task.Delay(1000);
+            await Task.Delay(1000, TestContext.Current.CancellationToken);
 
             Assert.Equal(numSent, receivedMessages.Count);
 
@@ -129,7 +130,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
                 return Task.CompletedTask;
             });
             // Give the receiver time to reach a steady state (waiting).
-            await Task.Delay(150);
+            await Task.Delay(150, TestContext.Current.CancellationToken);
 
             var payload = new byte[255];
             new Random().NextBytes(payload);
@@ -140,7 +141,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
             Assert.Equal(payload, message);
 
             // Give the receiver time to reach a steady state (waiting).
-            await Task.Delay(50);
+            await Task.Delay(50, TestContext.Current.CancellationToken);
 
             receiver.Dispose();
             await receiverTask;
@@ -163,7 +164,7 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
                 || ex.Message.Contains("The server was not found or was not accessible")
             )
             {
-                Skip.If(true, ex.Message);
+                Assert.Skip(ex.Message);
             }
         }
     }
