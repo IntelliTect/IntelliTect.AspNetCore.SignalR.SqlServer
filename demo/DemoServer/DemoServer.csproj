@@ -3,7 +3,7 @@
   <PropertyGroup>
     <CopyRefAssembliesToPublishDirectory>false</CopyRefAssembliesToPublishDirectory>
 	<IsPackable>false</IsPackable>
-	<TargetFrameworks>net9.0</TargetFrameworks>
+	<TargetFrameworks>net10.0</TargetFrameworks>
   </PropertyGroup>
 
   <ItemGroup>

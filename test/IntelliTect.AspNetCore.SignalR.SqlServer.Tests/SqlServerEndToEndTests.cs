@@ -14,8 +14,9 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
 {
     public class SqlServerEndToEndTests
     {
-        private const string databaseName = "SignalRUnitTestsDb";
-        private const string connectionString = 
+        // Per-runtime database: each target framework's test run executes in parallel.
+        private static readonly string databaseName = "SignalRUnitTestsDb_net" + Environment.Version.Major;
+        private static readonly string connectionString =
             "Server=localhost;Database=" + databaseName + ";Trusted_Connection=True;Timeout=5;TrustServerCertificate=True";
 
         [SkippableFact]
