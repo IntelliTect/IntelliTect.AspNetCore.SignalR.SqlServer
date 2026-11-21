@@ -5,71 +5,72 @@ using Microsoft.AspNetCore.SignalR.Internal;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Logging.Abstractions;
 using System;
+using TUnit.Assertions.Enums;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
-using Xunit;
+using System.Threading.Tasks;
 
 namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
 {
     public class SqlServerProtocolTests
     {
-        [Fact]
-        public void InvocationAllRoundTrips()
+        [Test]
+        public async Task InvocationAllRoundTrips()
         {
             var sut = new SqlServerProtocol(CreateHubMessageSerializer());
             var encoded = sut.WriteInvocationAll("Method", new object[] { "s" }, new[] { "excluded" });
             var decoded = sut.ReadInvocationAll(encoded);
 
-            var decodedMessage = ParseMessage(decoded.Message);
+            var decodedMessage = await ParseMessage(decoded.Message);
 
-            Assert.Equal(MessageType.InvocationAll, sut.ReadMessageType(encoded));
-            Assert.Equal(new[] { "excluded" }, decoded.ExcludedConnectionIds);
-            Assert.Equal("Method", decodedMessage.Target);
-            Assert.Equal("s", decodedMessage.Arguments.Single());
+            await Assert.That(sut.ReadMessageType(encoded)).IsEqualTo(MessageType.InvocationAll);
+            await Assert.That(decoded.ExcludedConnectionIds).IsEquivalentTo(new[] { "excluded" }, CollectionOrdering.Matching);
+            await Assert.That(decodedMessage.Target).IsEqualTo("Method");
+            await Assert.That(decodedMessage.Arguments.Single()).IsEqualTo("s");
         }
 
-        [Theory]
-        [InlineData(MessageType.InvocationConnection)]
-        [InlineData(MessageType.InvocationGroup)]
-        [InlineData(MessageType.InvocationUser)]
-        internal void TargetedInvocationRoundTrips(MessageType type)
+        [Test]
+        [Arguments(MessageType.InvocationConnection)]
+        [Arguments(MessageType.InvocationGroup)]
+        [Arguments(MessageType.InvocationUser)]
+        internal async Task TargetedInvocationRoundTrips(MessageType type)
         {
             var sut = new SqlServerProtocol(CreateHubMessageSerializer());
             var encoded = sut.WriteTargetedInvocation(type, "target", "Method", new object[] { "s" }, new[] { "excluded" });
             var decoded = sut.ReadTargetedInvocation(encoded);
 
-            var decodedMessage = ParseMessage(decoded.Invocation.Message);
+            var decodedMessage = await ParseMessage(decoded.Invocation.Message);
 
-            Assert.Equal(type, sut.ReadMessageType(encoded));
-            Assert.Equal(new[] { "excluded" }, decoded.Invocation.ExcludedConnectionIds);
-            Assert.Equal("target", decoded.Target);
-            Assert.Equal("Method", decodedMessage.Target);
-            Assert.Equal("s", decodedMessage.Arguments.Single());
+            await Assert.That(sut.ReadMessageType(encoded)).IsEqualTo(type);
+            await Assert.That(decoded.Invocation.ExcludedConnectionIds).IsEquivalentTo(new[] { "excluded" }, CollectionOrdering.Matching);
+            await Assert.That(decoded.Target).IsEqualTo("target");
+            await Assert.That(decodedMessage.Target).IsEqualTo("Method");
+            await Assert.That(decodedMessage.Arguments.Single()).IsEqualTo("s");
         }
 
-        [Fact]
-        internal void AckRoundTrips()
+        [Test]
+        internal async Task AckRoundTrips()
         {
             var sut = new SqlServerProtocol(CreateHubMessageSerializer());
             var encoded = sut.WriteAck(42, "server1");
             var decoded = sut.ReadAck(encoded);
 
-            Assert.Equal(MessageType.Ack, sut.ReadMessageType(encoded));
-            Assert.Equal(42, decoded.Id);
-            Assert.Equal("server1", decoded.ServerName);
+            await Assert.That(sut.ReadMessageType(encoded)).IsEqualTo(MessageType.Ack);
+            await Assert.That(decoded.Id).IsEqualTo(42);
+            await Assert.That(decoded.ServerName).IsEqualTo("server1");
         }
 
-        [Fact]
-        internal void GroupRoundTrips()
+        [Test]
+        internal async Task GroupRoundTrips()
         {
             var sut = new SqlServerProtocol(CreateHubMessageSerializer());
             var command = new SqlServerGroupCommand(42, "server1", GroupAction.Add, "groupName", "connection");
             var encoded = sut.WriteGroupCommand(command);
             var decoded = sut.ReadGroupCommand(encoded);
 
-            Assert.Equal(MessageType.Group, sut.ReadMessageType(encoded));
-            Assert.Equal(command, decoded);
+            await Assert.That(sut.ReadMessageType(encoded)).IsEqualTo(MessageType.Group);
+            await Assert.That(decoded).IsEqualTo(command);
         }
 
         private DefaultHubMessageSerializer CreateHubMessageSerializer()
@@ -81,12 +82,12 @@ namespace IntelliTect.AspNetCore.SignalR.SqlServer.Tests
         }
 
 
-        private InvocationMessage ParseMessage(SerializedHubMessage serialized)
+        private async Task<InvocationMessage> ParseMessage(SerializedHubMessage serialized)
         {
             var protocol = new MessagePackHubProtocol();
             var decodedMessage = new ReadOnlySequence<byte>(serialized.GetSerializedMessage(protocol));
-            Assert.True(protocol.TryParseMessage(ref decodedMessage, new DefaultInvocationBinder(), out var message));
-            return Assert.IsType<InvocationMessage>(message);
+            await Assert.That(protocol.TryParseMessage(ref decodedMessage, new DefaultInvocationBinder(), out var message)).IsTrue();
+            return (await Assert.That(message).IsTypeOf<InvocationMessage>())!;
         }
 
         private class HubProtocolResolver : IHubProtocolResolver
