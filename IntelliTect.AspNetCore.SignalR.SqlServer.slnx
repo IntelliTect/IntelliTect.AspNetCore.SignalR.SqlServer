@@ -1,0 +1,19 @@
+<Solution>
+  <Folder Name="/demo/">
+    <Project Path="demo/DemoBlazorServer/DemoBlazorServer.csproj" />
+    <Project Path="demo/DemoServer.AppHost/DemoServer.AppHost.csproj" />
+    <Project Path="demo/DemoServer/DemoServer.csproj" />
+  </Folder>
+  <Folder Name="/Solution Items/">
+    <File Path=".github/workflows/ci.yml" />
+    <File Path=".github/workflows/release.yml" />
+    <File Path="Directory.Build.props" />
+    <File Path="README.md" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/IntelliTect.AspNetCore.SignalR.SqlServer/IntelliTect.AspNetCore.SignalR.SqlServer.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/IntelliTect.AspNetCore.SignalR.SqlServer.Tests/IntelliTect.AspNetCore.SignalR.SqlServer.Tests.csproj" />
+  </Folder>
+</Solution>
