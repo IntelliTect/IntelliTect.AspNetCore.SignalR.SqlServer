@@ -1,6 +1,5 @@
 <Project>
 	<PropertyGroup>
-		<LangVersion>12.0</LangVersion>
 		<Company>IntelliTect</Company>
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
